@@ -117,7 +117,7 @@ if __name__ == '__main__':
     # 数据集所在根目录
     # https://storage.googleapis.com/download.tensorflow.org/example_images/flower_photos.tgz
     parser.add_argument('--data-path', type=str,
-                        default="/data/flower_photos")
+                        default="/data/flower_data")
 
     # densenet121 官方权重下载地址
     # https://download.pytorch.org/models/densenet121-a639ec97.pth

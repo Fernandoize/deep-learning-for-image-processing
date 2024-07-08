@@ -8,7 +8,7 @@ from utils import generate_ds
 
 
 def main():
-    data_root = "/home/wz/my_project/my_github/data_set/flower_data/flower_photos"  # get data root path
+    data_root = "/home/wz/my_project/my_github/data_set/flower_data/flower_data"  # get data root path
 
     if not os.path.exists("./save_weights"):
         os.makedirs("./save_weights")

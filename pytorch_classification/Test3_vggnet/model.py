@@ -1,5 +1,6 @@
 import torch.nn as nn
 import torch
+from torchinfo import summary
 
 # official pretrain weights
 model_urls = {
@@ -75,3 +76,14 @@ def vgg(model_name="vgg16", **kwargs):
 
     model = VGG(make_features(cfg), **kwargs)
     return model
+
+
+if __name__ == '__main__':
+    """
+    Params 134,281,029
+    Linear占比: 90%
+    模型大小：537M
+    """
+    model = vgg(num_classes=5, init_weights=True)
+    input = torch.randn(1, 3, 224, 224)
+    summary(model, (1, 3, 224, 224))

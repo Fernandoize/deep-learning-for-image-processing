@@ -21,3 +21,9 @@ data
 VOCdevkit
 ssd_resnet50_v1_fpn_shared_box_predictor
 runs
+.DS_Store
+data_set/.DS_Store
+*wandb/*
+*/flower_data/*
+*/flower_photo/*
+*/flower_photos/*

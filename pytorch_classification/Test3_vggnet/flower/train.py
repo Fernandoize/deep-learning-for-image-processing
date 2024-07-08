@@ -4,28 +4,28 @@ import json
 
 import torch
 import torch.nn as nn
-from torchvision import transforms, datasets
+from torchvision import transforms, datasets, utils
 import torch.optim as optim
 from tqdm import tqdm
 
-from model import vgg
+from pytorch_classification.Test3_vggnet.flower.model import vgg
+
 
 
 def main():
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     print("using {} device.".format(device))
 
-    # 如果使用imagenet预训练模型，需要每个图像减去imagenet三个通道的均值 (123.68, 116.78, 103.94)
     data_transform = {
         "train": transforms.Compose([transforms.RandomResizedCrop(224),
                                      transforms.RandomHorizontalFlip(),
                                      transforms.ToTensor(),
                                      transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))]),
-        "val": transforms.Compose([transforms.Resize((224, 224)),
+        "val": transforms.Compose([transforms.Resize((224, 224)),  # cannot 224, must (224, 224)
                                    transforms.ToTensor(),
                                    transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])}
 
-    data_root = os.path.abspath(os.path.join(os.getcwd(), "../.."))  # get data root path
+    data_root = os.path.abspath(os.path.join(os.getcwd(), "../../../"))  # get data root path
     image_path = os.path.join(data_root, "data_set", "flower_data")  # flower data set path
     assert os.path.exists(image_path), "{} path does not exist.".format(image_path)
     train_dataset = datasets.ImageFolder(root=os.path.join(image_path, "train"),
@@ -52,23 +52,20 @@ def main():
                                             transform=data_transform["val"])
     val_num = len(validate_dataset)
     validate_loader = torch.utils.data.DataLoader(validate_dataset,
-                                                  batch_size=batch_size, shuffle=False,
+                                                  batch_size=4, shuffle=False,
                                                   num_workers=nw)
+
     print("using {} images for training, {} images for validation.".format(train_num,
                                                                            val_num))
-
-    # test_data_iter = iter(validate_loader)
-    # test_image, test_label = test_data_iter.next()
-
-    model_name = "vgg16"
-    net = vgg(model_name=model_name, num_classes=5, init_weights=True)
+    net = vgg(model_name="vgg16", num_classes=5, init_weights=True, pretrained=True)
     net.to(device)
     loss_function = nn.CrossEntropyLoss()
-    optimizer = optim.Adam(net.parameters(), lr=0.0001)
 
-    epochs = 30
+    optimizer = optim.Adam(filter(lambda p: p.requires_grad, net.parameters()), lr=0.0002)
+
+    epochs = 10
+    save_path = './vgg11.pth'
     best_acc = 0.0
-    save_path = './{}Net.pth'.format(model_name)
     train_steps = len(train_loader)
     for epoch in range(epochs):
         # train

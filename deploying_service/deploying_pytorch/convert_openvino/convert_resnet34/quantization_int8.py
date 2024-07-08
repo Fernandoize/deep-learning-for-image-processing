@@ -7,7 +7,7 @@ from utils import MyDataLoader, Accuracy, read_split_data
 
 
 def main():
-    data_path = "/data/flower_photos"
+    data_path = "/data/flower_data"
     ir_model_xml = "ir_output/resnet34.xml"
     ir_model_bin = "ir_output/resnet34.bin"
     save_dir = "quant_ir_output"

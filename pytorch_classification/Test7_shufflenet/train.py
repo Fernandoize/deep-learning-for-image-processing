@@ -120,7 +120,7 @@ if __name__ == '__main__':
     # 数据集所在根目录
     # https://storage.googleapis.com/download.tensorflow.org/example_images/flower_photos.tgz
     parser.add_argument('--data-path', type=str,
-                        default="/data/flower_photos")
+                        default="/data/flower_data")
 
     # shufflenetv2_x1.0 官方权重下载地址
     # https://download.pytorch.org/models/shufflenetv2_x1-5666bf0f80.pth

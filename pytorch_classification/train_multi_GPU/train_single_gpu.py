@@ -127,7 +127,7 @@ if __name__ == '__main__':
     # 数据集所在根目录
     # https://storage.googleapis.com/download.tensorflow.org/example_images/flower_photos.tgz
     parser.add_argument('--data-path', type=str,
-                        default="/home/w180662/my_project/my_github/data_set/flower_data/flower_photos")
+                        default="/home/w180662/my_project/my_github/data_set/flower_data/flower_data")
 
     # resnet34 官方权重下载地址
     # https://download.pytorch.org/models/resnet34-333f7ec4.pth

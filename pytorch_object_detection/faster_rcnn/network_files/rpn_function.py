@@ -128,7 +128,9 @@ class AnchorsGenerator(nn.Module):
         assert cell_anchors is not None
 
         # 遍历每个预测特征层的grid_size，strides和cell_anchors
+        # 每个特征图对应的缩放比例为strides
         for size, stride, base_anchors in zip(grid_sizes, strides, cell_anchors):
+            # 特征图的大小
             grid_height, grid_width = size
             stride_height, stride_width = stride
             device = base_anchors.device
@@ -171,6 +173,7 @@ class AnchorsGenerator(nn.Module):
 
     def forward(self, image_list, feature_maps):
         # type: (ImageList, List[Tensor]) -> List[Tensor]
+        # 从这里看来，每个image只有一个featuremap
         # 获取每个预测特征层的尺寸(height, width)
         grid_sizes = list([feature_map.shape[-2:] for feature_map in feature_maps])
 
@@ -190,6 +193,7 @@ class AnchorsGenerator(nn.Module):
 
         # 计算/读取所有anchors的坐标信息（这里的anchors信息是映射到原图上的所有anchors信息，不是anchors模板）
         # 得到的是一个list列表，对应每张预测特征图映射回原图的anchors坐标信息
+        # 这里将所有的特征层生成的anchor按顺序排列，每个数量为 grid_area * 9
         anchors_over_all_feature_maps = self.cached_grid_anchors(grid_sizes, strides)
 
         anchors = torch.jit.annotate(List[List[torch.Tensor]], [])
@@ -210,6 +214,7 @@ class AnchorsGenerator(nn.Module):
 
 class RPNHead(nn.Module):
     """
+    RPN网络的类别和box预测头
     add a RPN head with classification and regression
     通过滑动窗口计算预测目标概率与bbox regression参数
 

@@ -143,7 +143,7 @@ if __name__ == '__main__':
     # 数据集所在根目录
     # http://download.tensorflow.org/example_images/flower_photos.tgz
     parser.add_argument('--data-path', type=str,
-                        default="/data/flower_photos")
+                        default="/data/flower_data")
 
     # 训练权重路径
     parser.add_argument('--weights', type=str, default='./weights/model-19.pth',
