@@ -8,24 +8,28 @@ from torchvision import transforms, datasets
 import torch.optim as optim
 from tqdm import tqdm
 
-from pytorch_classification.Test4_googlenet.flower.model import GoogleNet
+from pytorch_classification.Test5_resnet.flower.model import resnet34
 
 
 def main():
-    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    device = torch.device("mps" if torch.mps.is_available() else "cpu")
+    device = torch.device("cuda:0")  if torch.cuda.is_available() else device
     print("using {} device.".format(device))
 
+    # 官方提供的权重的数据预处理方法
     data_transform = {
         "train": transforms.Compose([transforms.RandomResizedCrop(224),
                                      transforms.RandomHorizontalFlip(),
                                      transforms.ToTensor(),
-                                     transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))]),
-        "val": transforms.Compose([transforms.Resize((224, 224)),  # cannot 224, must (224, 224)
+                                     transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])]),
+
+        "val": transforms.Compose([transforms.Resize(256),
+                                   transforms.CenterCrop(224),
                                    transforms.ToTensor(),
-                                   transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])}
+                                   transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])])}
 
     data_root = os.path.abspath(os.path.join(os.getcwd(), "../../../"))  # get data root path
-    image_path = os.path.join(data_root, "data_set", "flower_data")  # flower data set path
+    image_path = os.path.join(data_root, "data_set")  # flower data set path
     assert os.path.exists(image_path), "{} path does not exist.".format(image_path)
     train_dataset = datasets.ImageFolder(root=os.path.join(image_path, "train"),
                                          transform=data_transform["train"])
@@ -56,14 +60,26 @@ def main():
 
     print("using {} images for training, {} images for validation.".format(train_num,
                                                                            val_num))
-    net = GoogleNet(num_classes=5, aux_logits=True, init_weights=True)
+
+    # 注意：为了正确加载权重，这里不要设置classes
+    net = resnet34()
+    missing_keys, unexpected_keys = net.load_state_dict(torch.load("resnet34-b627a593.pth", map_location=device),
+                                                        strict=False)
+    print("missing keys: {}".format(missing_keys))
+    print("unexpected keys: {}".format(unexpected_keys))
+
+    # 1. 迁移学习的第一种方法
+    # 全连接层的输入特征shape
+    inchannel = net.fc.in_features
+    net.fc = nn.Linear(inchannel, 5)
     net.to(device)
+
     loss_function = nn.CrossEntropyLoss()
 
     optimizer = optim.Adam(filter(lambda p: p.requires_grad, net.parameters()), lr=0.0002)
 
     epochs = 10
-    save_path = './googleNet.pth'
+    save_path = './resnet34-pre.pth'
     best_acc = 0.0
     train_steps = len(train_loader)
     for epoch in range(epochs):
@@ -75,12 +91,8 @@ def main():
             images, labels = data
             optimizer.zero_grad()
             # 注意：这里有两个辅助分类器的输出
-            logits, aux2_logits, aux1_logits = net(images.to(device))
-            loss0 = loss_function(logits, labels.to(device))
-            loss1 = loss_function(aux1_logits, labels.to(device))
-            loss2 = loss_function(aux2_logits, labels.to(device))
-            loss = loss0 + loss1 * 0.3 + loss2 * 0.3
-
+            logits = net(images.to(device))
+            loss = loss_function(logits, labels.to(device))
             loss.backward()
             optimizer.step()
 
