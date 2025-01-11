@@ -7,15 +7,14 @@ import numpy
 import torch
 import torch.nn as nn
 import torch.optim as optim
-import wandb
-
 from torchvision import transforms, datasets
 from tqdm import tqdm
 
-from pytorch_classification.Test5_resnet.flower.model import resnet34
+import wandb
+from pytorch_classification.Test6_mobilenet.flower.model_v2 import MobileNetV2
 
 # 初始化wandb
-wandb.init(project='resnet34')
+wandb.init(project='mobile_net_v2')
 
 # 超参数设置
 config = wandb.config
@@ -28,7 +27,7 @@ config.weight_decay = 0.0002
 config.use_cuda = True
 config.seed = 2043
 config.log_interval = 10
-config.architecture = "resnet34"
+config.architecture = "mobile_net_v2"
 
 # 设置随机数
 def set_seed():
@@ -90,8 +89,8 @@ def main():
 
     # 4. 模型定义
     # 注意：为了正确加载权重，这里不要设置classes
-    net = resnet34()
-    missing_keys, unexpected_keys = net.load_state_dict(torch.load("resnet34-b627a593.pth", map_location=device),
+    net = MobileNetV2()
+    missing_keys, unexpected_keys = net.load_state_dict(torch.load("mobilenet_v2-b0353104.pth", map_location=device),
                                                         strict=False)
     print("missing keys: {}".format(missing_keys))
     print("unexpected keys: {}".format(unexpected_keys))
@@ -112,7 +111,7 @@ def main():
 
     # 5. 训练
     epochs = config.epochs
-    save_path = './resnet34.pth'
+    save_path = './mobile_net_v2.pth'
     best_acc = 0.0
     train_steps = len(train_loader)
     val_steps = len(validate_loader)

@@ -90,25 +90,22 @@ def main():
 
     # 4. 模型定义
     # 注意：为了正确加载权重，这里不要设置classes
-    net = resnet34()
-    missing_keys, unexpected_keys = net.load_state_dict(torch.load("resnet34-b627a593.pth", map_location=device),
-                                                        strict=False)
-    print("missing keys: {}".format(missing_keys))
-    print("unexpected keys: {}".format(unexpected_keys))
+    net = resnet34(num_classes=5)
+    # missing_keys, unexpected_keys = net.load_state_dict(torch.load("resnet34-b627a593.pth", map_location=device),
+    #                                                     strict=False)
+    # print("missing keys: {}".format(missing_keys))
+    # print("unexpected keys: {}".format(unexpected_keys))
 
     # 1. 迁移学习的第一种方法
     # 全连接层的输入特征shape
-    inchannel = net.fc.in_features
-    net.fc = nn.Linear(inchannel, 5)
+    # inchannel = net.fc.in_features
+    # net.fc = nn.Linear(inchannel, 5)
     net.to(device)
 
     # 4. 损失函数+ 优化器
     loss_function = nn.CrossEntropyLoss()
 
-    # 0.001
-    # optimizer = optim.SGD(filter(lambda p: p.requires_grad, net.parameters()), lr=config.lr, momentum=config.momentum, weight_decay=config.weight_decay)
-    # 0.0002
-    optimizer = optim.Adam(filter(lambda p: p.requires_grad, net.parameters()), lr=config.lr)
+    optimizer = optim.SGD(filter(lambda p: p.requires_grad, net.parameters()), lr=config.lr, momentum=config.momentum, weight_decay=config.weight_decay)
 
     # 5. 训练
     epochs = config.epochs

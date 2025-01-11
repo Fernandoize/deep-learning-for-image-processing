@@ -37,6 +37,7 @@ class BasicBlock(nn.Module):
         # relu无参数，可以共用
         self.relu = nn.ReLU()
 
+
     def forward(self, x):
         identity = x
         if self.downsample is not None:
@@ -55,14 +56,12 @@ class BasicBlock(nn.Module):
 
         return out
 
-
 class Bottleneck(nn.Module):
     """
     针对50和101、152层的残差结构
     expansion = 4 代表残差结构中第二层和第三层卷积核的个数发生4倍变化
     """
     expansion = 4
-
     def __init__(self, in_channels, out_channels, stride=1, downsample=None):
         super(Bottleneck, self).__init__()
         """
@@ -71,15 +70,14 @@ class Bottleneck(nn.Module):
         """
 
         # 1*1降维
-        self.conv1 = nn.Conv2d(in_channels=in_channels, out_channels=out_channels, kernel_size=1, stride=1, bias=False)
+        self.conv1= nn.Conv2d(in_channels=in_channels, out_channels=out_channels, kernel_size=1, stride=1, bias=False)
         self.bn1 = nn.BatchNorm2d(out_channels)
         #--------------
         self.cov2 = nn.Conv2d(in_channels=out_channels, out_channels=out_channels, kernel_size=3, stride=2, bias=False)
         self.bn2 = nn.BatchNorm2d(out_channels)
         # --------------
         # 第三层的卷积核个数扩张四倍
-        self.cov3 = nn.Conv2d(in_channels=out_channels, out_channels=out_channels * self.expansion, kernel_size=1,
-                              stride=1, bias=False)
+        self.cov3 = nn.Conv2d(in_channels=out_channels, out_channels=out_channels*self.expansion, kernel_size=1, stride=1, bias=False)
         self.bn3 = nn.BatchNorm2d(out_channels)
 
         self.relu = nn.ReLU(inplace=True)
@@ -123,7 +121,7 @@ class ResNet(nn.Module):
         self.input_channel = 64
         # 踩坑，卷积层的key需要和原文一样，否则无法加载预训练权重
         self.conv1 = nn.Conv2d(in_channels=3, out_channels=self.input_channel, kernel_size=7, stride=2,
-                               padding=3, bias=False)
+                      padding=3, bias=False)
         self.bn1 = nn.BatchNorm2d(self.input_channel)
         self.relu = nn.ReLU(inplace=True)
 
@@ -167,7 +165,7 @@ class ResNet(nn.Module):
         if self.include_top:
             x = self.avg_pool(x)
             x = torch.flatten(x, 1)
-            x = self.fc(x)
+            x =  self.fc(x)
 
         return x
 
@@ -232,18 +230,14 @@ class ResNet(nn.Module):
 def resnet18(num_classes=1000, include_top=True):
     return ResNet(BasicBlock, [2, 2, 2, 2], num_classes=num_classes, include_top=include_top)
 
-
 def resnet34(num_classes=1000, include_top=True):
     return ResNet(BasicBlock, [3, 4, 6, 3], num_classes=num_classes, include_top=include_top)
-
 
 def resnet50(num_classes=1000, include_top=True):
     return ResNet(Bottleneck, [3, 4, 6, 3], num_classes=num_classes, include_top=include_top)
 
-
 def resnet101(num_classes=1000, include_top=True):
     return ResNet(Bottleneck, [3, 4, 23, 3], num_classes=num_classes, include_top=include_top)
-
 
 def resnet152(num_classes=1000, include_top=True):
     return ResNet(Bottleneck, [3, 8, 36, 3], num_classes=num_classes, include_top=include_top)
