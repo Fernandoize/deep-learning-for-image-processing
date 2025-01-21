@@ -1,5 +1,5 @@
-import torch
 from torch import nn
+import torch
 
 class ConvBNReLU(nn.Sequential):
     """
@@ -69,7 +69,7 @@ def _make_divisible(ch, divisor=8, min_ch=None):
     return new_ch
 
 
-class MobileNetV2(torch.nn.Module):
+class MobileNetV2(nn.Module):
     def __init__(self, num_classes=1000, alpha=1.0, round_nearest=8):
         super(MobileNetV2, self).__init__()
         """

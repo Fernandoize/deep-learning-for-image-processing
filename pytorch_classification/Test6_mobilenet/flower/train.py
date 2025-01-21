@@ -11,10 +11,11 @@ from torchvision import transforms, datasets
 from tqdm import tqdm
 
 import wandb
-from pytorch_classification.Test6_mobilenet.flower.model_v2 import MobileNetV2
+from pytorch_classification.Test6_mobilenet.flower.model_v3 import mobilenet_v3_large
+import torchvision.models.mobilenetv3
 
 # 初始化wandb
-wandb.init(project='mobile_net_v2')
+wandb.init(project='mobile_net_v3')
 
 # 超参数设置
 config = wandb.config
@@ -27,7 +28,7 @@ config.weight_decay = 0.0002
 config.use_cuda = True
 config.seed = 2043
 config.log_interval = 10
-config.architecture = "mobile_net_v2"
+config.architecture = "mobile_net_v3"
 
 # 设置随机数
 def set_seed():
@@ -53,10 +54,11 @@ def main():
         "train": transforms.Compose([transforms.RandomResizedCrop(224),
                                      transforms.RandomHorizontalFlip(),
                                      transforms.ToTensor(),
-                                     transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))]),
-        "val": transforms.Compose([transforms.Resize((224, 224)),  # cannot 224, must (224, 224)
+                                     transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])]),
+        "val": transforms.Compose([transforms.Resize(256),
+                                   transforms.CenterCrop(224),
                                    transforms.ToTensor(),
-                                   transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])}
+                                   transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])])}
 
     data_root = os.path.abspath(os.path.join(os.getcwd(), "../../../"))  # get data root path
     image_path = os.path.join(data_root, "data_set")  # flower data set path
@@ -88,17 +90,18 @@ def main():
     print("using {} images for training, {} images for validation.".format(train_num, val_num))
 
     # 4. 模型定义
-    # 注意：为了正确加载权重，这里不要设置classes
-    net = MobileNetV2()
-    missing_keys, unexpected_keys = net.load_state_dict(torch.load("mobilenet_v2-b0353104.pth", map_location=device),
-                                                        strict=False)
-    print("missing keys: {}".format(missing_keys))
-    print("unexpected keys: {}".format(unexpected_keys))
+    net = mobilenet_v3_large(num_classes=5)
 
-    # 1. 迁移学习的第一种方法
-    # 全连接层的输入特征shape
-    inchannel = net.fc.in_features
-    net.fc = nn.Linear(inchannel, 5)
+    # delete classifier weights
+    pre_weights = torch.load("mobilenet_v3_large-8738ca79.pth", map_location=device)
+    pre_dict = {k: v for k, v in pre_weights.items() if net.state_dict()[k].numel() == v.numel()}
+    missing_keys, unexpected_keys = net.load_state_dict(pre_dict, strict=False)
+    print(missing_keys, unexpected_keys)
+
+    # freeze features weights
+    for param in net.features.parameters():
+        param.requires_grad = False
+
     net.to(device)
 
     # 4. 损失函数+ 优化器
@@ -111,7 +114,7 @@ def main():
 
     # 5. 训练
     epochs = config.epochs
-    save_path = './mobile_net_v2.pth'
+    save_path = './mobile_net_v3.pth'
     best_acc = 0.0
     train_steps = len(train_loader)
     val_steps = len(validate_loader)

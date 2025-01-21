@@ -9,10 +9,11 @@ from torchvision import transforms, datasets
 from tqdm import tqdm
 
 from model_v2 import MobileNetV2
+from pytorch_classification.Test6_mobilenet.model_v3 import mobilenet_v3_large
 
 
 def main():
-    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "mps")
     print("using {} device.".format(device))
 
     batch_size = 16
@@ -29,7 +30,7 @@ def main():
                                    transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])])}
 
     data_root = os.path.abspath(os.path.join(os.getcwd(), "../.."))  # get data root path
-    image_path = os.path.join(data_root, "data_set", "flower_data")  # flower data set path
+    image_path = os.path.join(data_root, "data_set")  # flower data set path
     assert os.path.exists(image_path), "{} path does not exist.".format(image_path)
     train_dataset = datasets.ImageFolder(root=os.path.join(image_path, "train"),
                                          transform=data_transform["train"])
@@ -61,17 +62,18 @@ def main():
                                                                            val_num))
 
     # create model
-    net = MobileNetV2(num_classes=5)
+    net = mobilenet_v3_large(num_classes=5)
 
     # load pretrain weights
     # download url: https://download.pytorch.org/models/mobilenet_v2-b0353104.pth
-    model_weight_path = "./mobilenet_v2.pth"
+    model_weight_path = "./flower/mobilenet_v3_large-8738ca79.pth"
     assert os.path.exists(model_weight_path), "file {} dose not exist.".format(model_weight_path)
-    pre_weights = torch.load(model_weight_path, map_location='cpu')
+    pre_weights = torch.load(model_weight_path, map_location=device)
 
     # delete classifier weights
     pre_dict = {k: v for k, v in pre_weights.items() if net.state_dict()[k].numel() == v.numel()}
     missing_keys, unexpected_keys = net.load_state_dict(pre_dict, strict=False)
+    print("missing keys: {}, unexpected_keys:{}".format(missing_keys, unexpected_keys))
 
     # freeze features weights
     for param in net.features.parameters():
