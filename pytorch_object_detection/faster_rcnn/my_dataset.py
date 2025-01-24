@@ -10,7 +10,7 @@ from lxml import etree
 class VOCDataSet(Dataset):
     """读取解析PASCAL VOC2007/2012数据集"""
 
-    def __init__(self, voc_root, year="2012", transforms=None, txt_name: str = "train.txt"):
+    def __init__(self, voc_root, year="2012", transforms=None, txt_name: str = "train.txt", class_file_path="./pascal_voc_classes.json"):
         assert year in ["2007", "2012"], "year must be in ['2007', '2012']"
         # 增加容错能力
         if "VOCdevkit" in voc_root:
@@ -30,7 +30,7 @@ class VOCDataSet(Dataset):
 
         self.xml_list = []
         # check file
-        for xml_path in xml_list:
+        for xml_path in xml_list[0:16]:
             if os.path.exists(xml_path) is False:
                 print(f"Warning: not found '{xml_path}', skip this annotation file.")
                 continue
@@ -41,7 +41,7 @@ class VOCDataSet(Dataset):
             xml = etree.fromstring(xml_str)
             data = self.parse_xml_to_dict(xml)["annotation"]
             if "object" not in data:
-                print(f"INFO: no objects in {xml_path}, skip this annotation file.")
+                # print(f"INFO: no objects in {xml_path}, skip this annotation file.")
                 continue
 
             self.xml_list.append(xml_path)
@@ -49,9 +49,8 @@ class VOCDataSet(Dataset):
         assert len(self.xml_list) > 0, "in '{}' file does not find any information.".format(txt_path)
 
         # read class_indict
-        json_file = './pascal_voc_classes.json'
-        assert os.path.exists(json_file), "{} file not exist.".format(json_file)
-        with open(json_file, 'r') as f:
+        assert os.path.exists(class_file_path), "{} file not exist.".format(class_file_path)
+        with open(class_file_path, 'r') as f:
             self.class_dict = json.load(f)
 
         self.transforms = transforms
@@ -199,44 +198,48 @@ class VOCDataSet(Dataset):
     def collate_fn(batch):
         return tuple(zip(*batch))
 
-# import transforms
-# from draw_box_utils import draw_objs
-# from PIL import Image
-# import json
-# import matplotlib.pyplot as plt
-# import torchvision.transforms as ts
-# import random
-#
-# # read class_indict
-# category_index = {}
-# try:
-#     json_file = open('./pascal_voc_classes.json', 'r')
-#     class_dict = json.load(json_file)
-#     category_index = {str(v): str(k) for k, v in class_dict.items()}
-# except Exception as e:
-#     print(e)
-#     exit(-1)
-#
-# data_transform = {
-#     "train": transforms.Compose([transforms.ToTensor(),
-#                                  transforms.RandomHorizontalFlip(0.5)]),
-#     "val": transforms.Compose([transforms.ToTensor()])
-# }
-#
-# # load train data set
-# train_data_set = VOCDataSet(os.getcwd(), "2012", data_transform["train"], "train.txt")
-# print(len(train_data_set))
-# for index in random.sample(range(0, len(train_data_set)), k=5):
-#     img, target = train_data_set[index]
-#     img = ts.ToPILImage()(img)
-#     plot_img = draw_objs(img,
-#                          target["boxes"].numpy(),
-#                          target["labels"].numpy(),
-#                          np.ones(target["labels"].shape[0]),
-#                          category_index=category_index,
-#                          box_thresh=0.5,
-#                          line_thickness=3,
-#                          font='arial.ttf',
-#                          font_size=20)
-#     plt.imshow(plot_img)
-#     plt.show()
+
+if __name__ == '__main__':
+    import transforms
+    from draw_box_utils import draw_objs
+    from PIL import Image
+    import json
+    import matplotlib.pyplot as plt
+    import torchvision.transforms as ts
+    import random
+
+    # read class_indict
+    category_index = {}
+    class_file_path = "../duo/pascal_voc_classes.json"
+    try:
+        json_file = open(class_file_path, 'r')
+        class_dict = json.load(json_file)
+        category_index = {str(v): str(k) for k, v in class_dict.items()}
+    except Exception as e:
+        print(e)
+        exit(-1)
+
+    data_transform = {
+        "train": transforms.Compose([transforms.ToTensor(),
+                                     transforms.RandomHorizontalFlip(0.5)]),
+        "val": transforms.Compose([transforms.ToTensor()])
+    }
+
+    # load train data set
+    voc_root = "/Users/wangfengguo/LocalTools/data/DUODataSet"
+    train_data_set = VOCDataSet(voc_root, "2012", data_transform["train"], "train.txt", class_file_path)
+    print(len(train_data_set))
+    for index in random.sample(range(0, len(train_data_set)), k=5):
+        img, target = train_data_set[index]
+        img = ts.ToPILImage()(img)
+        plot_img = draw_objs(img,
+                             target["boxes"].numpy(),
+                             target["labels"].numpy(),
+                             np.ones(target["labels"].shape[0]),
+                             category_index=category_index,
+                             box_thresh=0.5,
+                             line_thickness=3,
+                             font='arial.ttf',
+                             font_size=20)
+        plt.imshow(plot_img)
+        plt.show()

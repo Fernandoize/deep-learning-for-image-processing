@@ -55,7 +55,7 @@ def main():
         "val": transforms.Compose([transforms.ToTensor()])
     }
 
-    VOC_root = "./"  # VOCdevkit
+    VOC_root = "/Users/wangfengguo/LocalTools/data/DUODataSet"  # VOCdevkit
     aspect_ratio_group_factor = 3
     batch_size = 8
     amp = False  # 是否使用混合精度训练，需要GPU支持
@@ -66,7 +66,7 @@ def main():
 
     # load train data set
     # VOCdevkit -> VOC2012 -> ImageSets -> Main -> train.txt
-    train_dataset = VOCDataSet(VOC_root, "2012", data_transform["train"], "train.txt")
+    train_dataset = VOCDataSet(VOC_root, "2012", data_transform["train"], "train.txt", "../duo/pascal_voc_classes.json")
     train_sampler = None
 
     # 是否按图片相似高宽比采样图片组成batch
@@ -99,7 +99,7 @@ def main():
 
     # load validation data set
     # VOCdevkit -> VOC2012 -> ImageSets -> Main -> val.txt
-    val_dataset = VOCDataSet(VOC_root, "2012", data_transform["val"], "val.txt")
+    val_dataset = VOCDataSet(VOC_root, "2012", data_transform["val"], "val.txt", "../duo/pascal_voc_classes.json")
     val_data_loader = torch.utils.data.DataLoader(val_dataset,
                                                   batch_size=1,
                                                   shuffle=False,
@@ -108,7 +108,7 @@ def main():
                                                   collate_fn=val_dataset.collate_fn)
 
     # create model num_classes equal background + 20 classes
-    model = create_model(num_classes=21)
+    model = create_model(num_classes=5)
     # print(model)
 
     model.to(device)
