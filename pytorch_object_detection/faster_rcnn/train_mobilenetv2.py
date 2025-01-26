@@ -39,7 +39,7 @@ def create_model(num_classes):
 
 
 def main():
-    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "mps")
     print("Using {} device training.".format(device.type))
 
     # 用来保存coco_info的文件
@@ -51,13 +51,15 @@ def main():
 
     data_transform = {
         "train": transforms.Compose([transforms.ToTensor(),
+                                     # 当图片进行水平翻转时，bbox坐标也要进行翻转
                                      transforms.RandomHorizontalFlip(0.5)]),
         "val": transforms.Compose([transforms.ToTensor()])
     }
 
     VOC_root = "/Users/wangfengguo/LocalTools/data/DUODataSet"  # VOCdevkit
     aspect_ratio_group_factor = 3
-    batch_size = 8
+    # 根据GPU的显存调整
+    batch_size = 32
     amp = False  # 是否使用混合精度训练，需要GPU支持
 
     # check voc root
@@ -78,6 +80,7 @@ def main():
         # 每个batch图片从同一高宽比例区间中取
         train_batch_sampler = GroupedBatchSampler(train_sampler, group_ids, batch_size)
 
+    # linux下可以改为4或8，加快训练
     nw = min([os.cpu_count(), batch_size if batch_size > 1 else 0, 8])  # number of workers
     print('Using %g dataloader workers' % nw)
 
@@ -159,7 +162,7 @@ def main():
     #  解冻前置特征提取网络权重（backbone），接着训练整个网络权重  #
     # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
-    # 冻结backbone部分底层权重
+    # 冻结backbone部分底层权重，冻结前几层公用的特征
     for name, parameter in model.backbone.named_parameters():
         split_name = name.split(".")[0]
         if split_name in ["0", "1", "2", "3"]:
@@ -171,7 +174,7 @@ def main():
     params = [p for p in model.parameters() if p.requires_grad]
     optimizer = torch.optim.SGD(params, lr=0.005,
                                 momentum=0.9, weight_decay=0.0005)
-    # learning rate scheduler
+    # learning rate scheduler 学习率路线，每隔一定步数，降低学习率
     lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer,
                                                    step_size=3,
                                                    gamma=0.33)

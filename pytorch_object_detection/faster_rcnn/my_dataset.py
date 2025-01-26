@@ -1,10 +1,12 @@
-import numpy as np
-from torch.utils.data import Dataset
 import os
+
+import numpy as np
 import torch
+from lxml import etree
+from torch.utils.data import Dataset
+import random
 import json
 from PIL import Image
-from lxml import etree
 
 
 class VOCDataSet(Dataset):
@@ -30,7 +32,7 @@ class VOCDataSet(Dataset):
 
         self.xml_list = []
         # check file
-        for xml_path in xml_list[0:16]:
+        for xml_path in xml_list:
             if os.path.exists(xml_path) is False:
                 print(f"Warning: not found '{xml_path}', skip this annotation file.")
                 continue
