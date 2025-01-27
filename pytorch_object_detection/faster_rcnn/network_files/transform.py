@@ -72,6 +72,7 @@ class GeneralizedRCNNTransform(nn.Module):
         mean = torch.as_tensor(self.image_mean, dtype=dtype, device=device)
         std = torch.as_tensor(self.image_std, dtype=dtype, device=device)
         # [:, None, None]: shape [3] -> [3, 1, 1]
+        # 广播机制保证 image和mean shape相同
         return (image - mean[:, None, None]) / std[:, None, None]
 
     def torch_choice(self, k):
@@ -100,6 +101,7 @@ class GeneralizedRCNNTransform(nn.Module):
         h, w = image.shape[-2:]
 
         if self.training:
+            # 取出最小边长
             size = float(self.torch_choice(self.min_size))  # 指定输入图片的最小边长,注意是self.min_size不是min_size
         else:
             # FIXME assume for now that testing uses the largest scale
@@ -156,6 +158,7 @@ class GeneralizedRCNNTransform(nn.Module):
     def batch_images(self, images, size_divisible=32):
         # type: (List[Tensor], int) -> Tensor
         """
+        好处：
         将一批图像打包成一个batch返回（注意batch中每个tensor的shape是相同的）
         Args:
             images: 输入的一批图片
@@ -165,6 +168,7 @@ class GeneralizedRCNNTransform(nn.Module):
             batched_imgs: 打包成一个batch后的tensor数据
         """
 
+        # 将模型转化为onnx格式，不再以来于深度学习框架，tensorRT针对gpu进一步优化的模型
         if torchvision._is_tracing():
             # batch_images() does not export well to ONNX
             # call _onnx_batch_images() instead
@@ -173,6 +177,7 @@ class GeneralizedRCNNTransform(nn.Module):
         # 分别计算一个batch中所有图片中的最大channel, height, width
         max_size = self.max_by_axis([list(img.shape) for img in images])
 
+        # 将尺寸调整为32的整数倍，便于GPU计算
         stride = float(size_divisible)
         # max_size = list(max_size)
         # 将height向上调整到stride的整数倍
@@ -183,6 +188,7 @@ class GeneralizedRCNNTransform(nn.Module):
         # [batch, channel, height, width]
         batch_shape = [len(images)] + max_size
 
+        # 使用0填充
         # 创建shape为batch_shape且值全部为0的tensor
         batched_imgs = images[0].new_full(batch_shape, 0)
         for img, pad_img in zip(images, batched_imgs):

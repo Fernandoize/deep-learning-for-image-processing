@@ -81,7 +81,7 @@ def evaluate(model, data_loader, device):
         image = list(img.to(device) for img in image)
 
         # 当使用CPU时，跳过GPU相关指令
-        if device != torch.device("cpu"):
+        if device != torch.device("cpu") and device != torch.device("mps"):
             torch.cuda.synchronize(device)
 
         model_time = time.time()

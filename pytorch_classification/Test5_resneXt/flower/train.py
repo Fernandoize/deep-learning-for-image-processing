@@ -92,7 +92,7 @@ def main():
     # 4. 模型定义
     # 注意：为了正确加载权重，这里不要设置classes
     net = resnet34(num_classes=5)
-    # missing_keys, unexpected_keys = net.load_state_dict(torch.load("resnet34-b627a593.pth", map_location=device),
+    # missing_keys, unexpected_keys = net.load_state_dict(torch.load("resnet34.pth", map_location=device),
     #                                                     strict=False)
     # print("missing keys: {}".format(missing_keys))
     # print("unexpected keys: {}".format(unexpected_keys))

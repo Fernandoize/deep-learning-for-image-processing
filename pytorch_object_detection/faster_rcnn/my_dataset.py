@@ -12,7 +12,7 @@ from PIL import Image
 class VOCDataSet(Dataset):
     """读取解析PASCAL VOC2007/2012数据集"""
 
-    def __init__(self, voc_root, year="2012", transforms=None, txt_name: str = "train.txt", class_file_path="./pascal_voc_classes.json"):
+    def __init__(self, voc_root, year="2012", transforms=None, txt_name: str = "train.txt"):
         assert year in ["2007", "2012"], "year must be in ['2007', '2012']"
         # 增加容错能力
         if "VOCdevkit" in voc_root:
@@ -43,7 +43,7 @@ class VOCDataSet(Dataset):
             xml = etree.fromstring(xml_str)
             data = self.parse_xml_to_dict(xml)["annotation"]
             if "object" not in data:
-                # print(f"INFO: no objects in {xml_path}, skip this annotation file.")
+                print(f"INFO: no objects in {xml_path}, skip this annotation file.")
                 continue
 
             self.xml_list.append(xml_path)
@@ -51,8 +51,9 @@ class VOCDataSet(Dataset):
         assert len(self.xml_list) > 0, "in '{}' file does not find any information.".format(txt_path)
 
         # read class_indict
-        assert os.path.exists(class_file_path), "{} file not exist.".format(class_file_path)
-        with open(class_file_path, 'r') as f:
+        json_file = './pascal_voc_classes.json'
+        assert os.path.exists(json_file), "{} file not exist.".format(json_file)
+        with open(json_file, 'r') as f:
             self.class_dict = json.load(f)
 
         self.transforms = transforms
@@ -212,7 +213,7 @@ if __name__ == '__main__':
 
     # read class_indict
     category_index = {}
-    class_file_path = "../duo/pascal_voc_classes.json"
+    class_file_path = "./pascal_voc_classes.json"
     try:
         json_file = open(class_file_path, 'r')
         class_dict = json.load(json_file)
@@ -228,10 +229,9 @@ if __name__ == '__main__':
     }
 
     # load train data set
-    voc_root = "/Users/wangfengguo/LocalTools/data/DUODataSet"
-    train_data_set = VOCDataSet(voc_root, "2012", data_transform["train"], "train.txt", class_file_path)
+    train_data_set = VOCDataSet(os.getcwd(), "2012", data_transform["train"], "train.txt")
     print(len(train_data_set))
-    for index in random.sample(range(0, len(train_data_set)), k=5):
+    for index in random.sample(range(0, len(train_data_set)), k=10):
         img, target = train_data_set[index]
         img = ts.ToPILImage()(img)
         plot_img = draw_objs(img,

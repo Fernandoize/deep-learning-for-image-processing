@@ -41,7 +41,7 @@ def create_model(num_classes, load_pretrain_weights=True):
 
 
 def main(args):
-    device = torch.device(args.device if torch.cuda.is_available() else "mps")
+    device = torch.device(args.device if torch.cuda.is_available() else "cpu")
     print("Using {} device training.".format(device.type))
 
     # 用来保存coco_info的文件
@@ -61,7 +61,7 @@ def main(args):
 
     # load train data set
     # VOCdevkit -> VOC2012 -> ImageSets -> Main -> train.txt
-    train_dataset = VOCDataSet(VOC_root, "2012", data_transform["train"], "train.txt", class_file_path)
+    train_dataset = VOCDataSet(VOC_root, "2012", data_transform["train"], "train.txt")
     train_sampler = None
 
     # 是否按图片相似高宽比采样图片组成batch
@@ -103,7 +103,7 @@ def main(args):
                                                       collate_fn=val_dataset.collate_fn)
 
     # create model num_classes equal background + 20 classes
-    model = create_model(num_classes=args.num_classes + 1, load_pretrain_weights=True)
+    model = create_model(num_classes=args.num_classes + 1)
     # print(model)
 
     model.to(device)
@@ -184,7 +184,7 @@ def main(args):
 
 if __name__ == "__main__":
     """
-    --device None --data-path /Users/wangfengguo/LocalTools/data/DUODataSet --num-classes 4 --classes-file-path ../duo/pascal_voc_classes.json
+    --data-path /root/DUODataSet --num-classes 5 
     """
     import argparse
 
@@ -196,8 +196,6 @@ if __name__ == "__main__":
     parser.add_argument('--data-path', default='./', help='dataset')
     # 检测目标类别数(不包含背景)
     parser.add_argument('--num-classes', default=20, type=int, help='num_classes')
-    # 类别json文件地址
-    parser.add_argument('--classes-file-path', default='./pascal_voc_classes.json', help='classes file path')
     # 文件保存地址
     parser.add_argument('--output-dir', default='./save_weights', help='path where to save')
     # 若需要接着上次训练，则指定上次训练保存权重文件地址

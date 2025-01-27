@@ -2,21 +2,57 @@ import os
 import datetime
 
 import torch
+from torch import nn
+from torchvision.models import mobilenet_v3_large
 
 import transforms
 from network_files import FasterRCNN, AnchorsGenerator
 from my_dataset import VOCDataSet
+from backbone.mobilenetv3UccM import UCCM
 from train_utils import GroupedBatchSampler, create_aspect_ratio_groups
 from train_utils import train_eval_utils as utils
 from backbone import BackboneWithFPN, LastLevelMaxPool
+import torchvision
+from torchvision.models.feature_extraction import create_feature_extractor
 
 
-def create_model(num_classes):
-    import torchvision
-    from torchvision.models.feature_extraction import create_feature_extractor
+def create_resnet_backbone_with_fpn():
+    backbone = torchvision.models.resnet34(pretrained=False)
+    checkpoint = torch.load("backbone/resnet34.pth")
+    backbone.load_state_dict(checkpoint)
+    # print(backbone)
+    return_layers = {'layer1': '0', 'layer2': '1', 'layer3': '2'}
+    # 提供给fpn的每个特征层channel
+    in_channels_list = [64, 128, 256]
+    new_backbone = create_feature_extractor(backbone, return_layers)
+    img = torch.randn(1, 3, 224, 224)
+    outputs = new_backbone(img)
+    [print(f"{k} shape: {v.shape}") for k, v in outputs.items()]
+    return new_backbone, return_layers, in_channels_list
 
+
+def create_efficientnet_backbone_with_fpn():
+    backbone = torchvision.models.efficientnet_b0(pretrained=True)
+    # print(backbone)
+    return_layers = {"features.3": "0",  # stride 8
+                     "features.4": "1",  # stride 16
+                     "features.8": "2"}  # stride 32
+    # 提供给fpn的每个特征层channel
+    in_channels_list = [40, 80, 1280]
+    new_backbone = create_feature_extractor(backbone, return_layers)
+    img = torch.randn(1, 3, 224, 224)
+    outputs = new_backbone(img)
+    [print(f"{k} shape: {v.shape}") for k, v in outputs.items()]
+    return new_backbone, return_layers, in_channels_list
+
+
+def create_mobilenetv3_backbone_with_fpn():
     # --- mobilenet_v3_large fpn backbone --- #
-    backbone = torchvision.models.mobilenet_v3_large(pretrained=True)
+    backbone = mobilenet_v3_large(pretrained=True)
+    # 动态插入 UCCM 模块
+    uccm_layers = nn.ModuleList([UCCM(in_channels=backbone.features[4].out_channels)])  # 根据目标层的输出通道数初始化 UCCM
+    # 替换目标层
+    backbone.features[4] = nn.Sequential(backbone.features[4], uccm_layers[0])
     # print(backbone)
     return_layers = {"features.6": "0",   # stride 8
                      "features.12": "1",  # stride 16
@@ -27,20 +63,17 @@ def create_model(num_classes):
     # img = torch.randn(1, 3, 224, 224)
     # outputs = new_backbone(img)
     # [print(f"{k} shape: {v.shape}") for k, v in outputs.items()]
+    return new_backbone, return_layers, in_channels_list
 
-    # --- efficientnet_b0 fpn backbone --- #
-    # backbone = torchvision.models.efficientnet_b0(pretrained=True)
-    # # print(backbone)
-    # return_layers = {"features.3": "0",  # stride 8
-    #                  "features.4": "1",  # stride 16
-    #                  "features.8": "2"}  # stride 32
-    # # 提供给fpn的每个特征层channel
-    # in_channels_list = [40, 80, 1280]
-    # new_backbone = create_feature_extractor(backbone, return_layers)
-    # # img = torch.randn(1, 3, 224, 224)
-    # # outputs = new_backbone(img)
-    # # [print(f"{k} shape: {v.shape}") for k, v in outputs.items()]
 
+def create_model(num_classes, model_name):
+    if model_name == "mobilenetv3":
+        new_backbone, return_layers, in_channels_list = create_mobilenetv3_backbone_with_fpn()
+    elif model_name == "efficientnet":
+        new_backbone, return_layers, in_channels_list = create_efficientnet_backbone_with_fpn()
+    elif model_name == "resnet":
+        new_backbone, return_layers, in_channels_list = create_resnet_backbone_with_fpn()
+    print(f"choose model: {model_name}")
     backbone_with_fpn = BackboneWithFPN(new_backbone,
                                         return_layers=return_layers,
                                         in_channels_list=in_channels_list,
@@ -79,6 +112,7 @@ def main(args):
     }
 
     VOC_root = args.data_path
+    class_file_path = args.classes_file_path
     # check voc root
     if os.path.exists(os.path.join(VOC_root, "VOCdevkit")) is False:
         raise FileNotFoundError("VOCdevkit dose not in path:'{}'.".format(VOC_root))
@@ -127,7 +161,7 @@ def main(args):
                                                       collate_fn=val_dataset.collate_fn)
 
     # create model num_classes equal background + 20 classes
-    model = create_model(num_classes=args.num_classes + 1)
+    model = create_model(num_classes=args.num_classes + 1, model_name=args.model_name)
     # print(model)
 
     model.to(device)
@@ -212,6 +246,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description=__doc__)
 
+    parser.add_argument('--model_name', default='resnet', help='model_name')
     # 训练设备类型
     parser.add_argument('--device', default='cuda:0', help='device')
     # 训练数据集的根目录(VOCdevkit)

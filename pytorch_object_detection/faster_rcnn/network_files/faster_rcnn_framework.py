@@ -23,6 +23,8 @@ class FasterRCNNBase(nn.Module):
             detections / masks from it.
         transform (nn.Module): performs the data transformation from the inputs to feed into
             the model
+
+    参数：backbone, rpn(区域建议生成), roi_heads(从ROI Pooling、MLP, FasterRCNN Predictor)
     """
 
     def __init__(self, backbone, rpn, roi_heads, transform):
@@ -45,6 +47,7 @@ class FasterRCNNBase(nn.Module):
     def forward(self, images, targets=None):
         # type: (List[Tensor], Optional[List[Dict[str, Tensor]]]) -> Tuple[Dict[str, Tensor], List[Dict[str, Tensor]]]
         """
+        images输入图像，target包含标签
         Arguments:
             images (list[Tensor]): images to be processed
             targets (list[Dict[Tensor]]): ground-truth boxes present in the image (optional)
@@ -56,14 +59,17 @@ class FasterRCNNBase(nn.Module):
                 like `scores`, `labels` and `mask` (for Mask R-CNN models).
 
         """
+        # 训练模式必须有target
         if self.training and targets is None:
             raise ValueError("In training mode, targets should be passed")
 
+        # 1. 检查targets中bbox参数
         if self.training:
             assert targets is not None
             for target in targets:         # 进一步判断传入的target的boxes参数是否符合规定
                 boxes = target["boxes"]
                 if isinstance(boxes, torch.Tensor):
+                    # boxes的shape为(N, 4)
                     if len(boxes.shape) != 2 or boxes.shape[-1] != 4:
                         raise ValueError("Expected target boxes to be a tensor"
                                          "of shape [N, 4], got {:}.".format(
@@ -72,6 +78,7 @@ class FasterRCNNBase(nn.Module):
                     raise ValueError("Expected target boxes to be of type "
                                      "Tensor, got {:}.".format(type(boxes)))
 
+        # 2. 提取原图片的尺寸, image shape (channel, height, width)， 以便于后续映射到原图
         original_image_sizes = torch.jit.annotate(List[Tuple[int, int]], [])
         for img in images:
             val = img.shape[-2:]
@@ -79,21 +86,28 @@ class FasterRCNNBase(nn.Module):
             original_image_sizes.append((val[0], val[1]))
         # original_image_sizes = [img.shape[-2:] for img in images]
 
+        # 3. 对图像进行预处理，这里处理分为两部分 Normalize, Resize(缩小到指定尺寸)， 图像大小一致才能在GPU中并行计算
         images, targets = self.transform(images, targets)  # 对图像进行预处理
 
         # print(images.tensors.shape)
+        # 4. backbone提取特征
         features = self.backbone(images.tensors)  # 将图像输入backbone得到特征图
+
+        # 5. FPN输出特征图有多层，用有序字典存储
         if isinstance(features, torch.Tensor):  # 若只在一层特征层上预测，将feature放入有序字典中，并编号为‘0’
             features = OrderedDict([('0', features)])  # 若在多层特征层上预测，传入的就是一个有序字典
 
+        # 6. 使用rpn得到生成proposal以及对应损失
         # 将特征层以及标注target信息传入rpn中
         # proposals: List[Tensor], Tensor_shape: [num_proposals, 4],
         # 每个proposals是绝对坐标，且为(x1, y1, x2, y2)格式
         proposals, proposal_losses = self.rpn(images, features, targets)
 
+        # 7. roi head获取检测损失 及 预测结果
         # 将rpn生成的数据以及标注target信息传入fast rcnn后半部分
         detections, detector_losses = self.roi_heads(features, proposals, images.image_sizes, targets)
 
+        # 8. 预测结果还原
         # 对网络的预测结果进行后处理（主要将bboxes还原到原图像尺度上）
         detections = self.transform.postprocess(detections, images.image_sizes, original_image_sizes)
 
@@ -101,6 +115,7 @@ class FasterRCNNBase(nn.Module):
         losses.update(detector_losses)
         losses.update(proposal_losses)
 
+        # 能够逃避global torch lock, 进行提速
         if torch.jit.is_scripting():
             if not self._has_warned:
                 warnings.warn("RCNN always returns a (Losses, Detections) tuple in scripting")
@@ -246,18 +261,26 @@ class FasterRCNN(FasterRCNNBase):
 
     def __init__(self, backbone, num_classes=None,
                  # transform parameter
+                 # 预处理resize的最小与最大尺寸
                  min_size=800, max_size=1333,      # 预处理resize时限制的最小尺寸与最大尺寸
+                 # 参数和imagenet保持一致
                  image_mean=None, image_std=None,  # 预处理normalize时使用的均值和方差
                  # RPN parameters
+                 # rpn anchor生成器, rpn_head 3*3卷积滑动窗口
                  rpn_anchor_generator=None, rpn_head=None,
+                 # 在rpn输出proposal之前使用nms处理
                  rpn_pre_nms_top_n_train=2000, rpn_pre_nms_top_n_test=1000,    # rpn中在nms处理前保留的proposal数(根据score)
                  rpn_post_nms_top_n_train=2000, rpn_post_nms_top_n_test=1000,  # rpn中在nms处理后保留的proposal数
                  rpn_nms_thresh=0.7,  # rpn中进行nms处理时使用的iou阈值
                  rpn_fg_iou_thresh=0.7, rpn_bg_iou_thresh=0.3,  # rpn计算损失时，采集正负样本设置的阈值
+                 # 样本比例 1:1
                  rpn_batch_size_per_image=256, rpn_positive_fraction=0.5,  # rpn计算损失时采样的样本数，以及正样本占总样本的比例
                  rpn_score_thresh=0.0,
+
+                 # ROI Head box_head对应MLP box_predictor用来预测概率和边界框
                  # Box parameters
                  box_roi_pool=None, box_head=None, box_predictor=None,
+
                  # 移除低目标概率      fast rcnn中进行nms处理的阈值   对预测结果根据score排序取前100个目标
                  box_score_thresh=0.05, box_nms_thresh=0.5, box_detections_per_img=100,
                  box_fg_iou_thresh=0.5, box_bg_iou_thresh=0.5,   # fast rcnn计算误差时，采集正负样本设置的阈值
@@ -287,6 +310,8 @@ class FasterRCNN(FasterRCNNBase):
 
         # 若anchor生成器为空，则自动生成针对resnet50_fpn的anchor生成器
         if rpn_anchor_generator is None:
+            # FPN输出5个预测特征层，所以anchor_generator对应size为一个元组
+            # 在尺寸最大的特征层，预测小目标(细节比较多)，同样尺寸小的特征层预测大目标
             anchor_sizes = ((32,), (64,), (128,), (256,), (512,))
             aspect_ratios = ((0.5, 1.0, 2.0),) * len(anchor_sizes)
             rpn_anchor_generator = AnchorsGenerator(
@@ -294,6 +319,7 @@ class FasterRCNN(FasterRCNNBase):
             )
 
         # 生成RPN通过滑动窗口预测网络部分
+        # RPN Header，1个3*3卷积，两个1*1卷积
         if rpn_head is None:
             rpn_head = RPNHead(
                 out_channels, rpn_anchor_generator.num_anchors_per_location()[0]
@@ -315,6 +341,7 @@ class FasterRCNN(FasterRCNNBase):
         #  Multi-scale RoIAlign pooling
         if box_roi_pool is None:
             box_roi_pool = MultiScaleRoIAlign(
+                # 指定预测层
                 featmap_names=['0', '1', '2', '3'],  # 在哪些特征层进行roi pooling
                 output_size=[7, 7],
                 sampling_ratio=2)

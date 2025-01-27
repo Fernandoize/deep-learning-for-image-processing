@@ -74,6 +74,7 @@ def read_xml_info(xml_path):
         if isinstance(objects, dict):
             objects = [objects]
         return {
+            'filename': annotations['filename'],
             'height': annotations['size']['height'],
             'width': annotations['size']['width'],
             'depth': annotations['size']['depth'],

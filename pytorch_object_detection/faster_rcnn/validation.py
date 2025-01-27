@@ -98,7 +98,7 @@ def main(parser_data):
     }
 
     # read class_indict
-    label_json_path = './pascal_voc_classes.json'
+    label_json_path = '../duo/pascal_voc_classes.json'
     assert os.path.exists(label_json_path), "json file {} dose not exist.".format(label_json_path)
     with open(label_json_path, 'r') as f:
         class_dict = json.load(f)
@@ -116,7 +116,7 @@ def main(parser_data):
     print('Using %g dataloader workers' % nw)
 
     # load validation data set
-    val_dataset = VOCDataSet(VOC_root, "2012", data_transform["val"], "val.txt")
+    val_dataset = VOCDataSet(VOC_root, "2012", data_transform["test"], "test.txt")
     val_dataset_loader = torch.utils.data.DataLoader(val_dataset,
                                                      batch_size=1,
                                                      shuffle=False,

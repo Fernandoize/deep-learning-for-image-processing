@@ -1,13 +1,13 @@
-import os
 import datetime
+import os
 
 import torch
 import torchvision
 
 import transforms
-from network_files import FasterRCNN, AnchorsGenerator
-from backbone import MobileNetV2, vgg
+from backbone import MobileNetV2
 from my_dataset import VOCDataSet
+from network_files import FasterRCNN, AnchorsGenerator
 from train_utils import GroupedBatchSampler, create_aspect_ratio_groups
 from train_utils import train_eval_utils as utils
 
@@ -56,10 +56,10 @@ def main():
         "val": transforms.Compose([transforms.ToTensor()])
     }
 
-    VOC_root = "/Users/wangfengguo/LocalTools/data/DUODataSet"  # VOCdevkit
+    VOC_root = "./"  # VOCdevkit
     aspect_ratio_group_factor = 3
     # 根据GPU的显存调整
-    batch_size = 32
+    batch_size = 8
     amp = False  # 是否使用混合精度训练，需要GPU支持
 
     # check voc root

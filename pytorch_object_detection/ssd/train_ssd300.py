@@ -171,6 +171,8 @@ if __name__ == '__main__':
 
     # 训练设备类型
     parser.add_argument('--device', default='cuda:0', help='device')
+    # 类别json文件地址
+    parser.add_argument('--classes-file-path', default='./pascal_voc_classes.json', help='classes file path')
     # 检测的目标类别个数，不包括背景
     parser.add_argument('--num_classes', default=20, type=int, help='num_classes')
     # 训练数据集的根目录(VOCdevkit)
