@@ -8,8 +8,8 @@ import shutil
 
 import xmltodict
 
-ROOT_DIR = "/Users/wangfengguo/LocalTools/data/DUODataSet"
-VOC_ROOT = os.path.join(ROOT_DIR, "VOCdevkit", "VOC2012")
+SRC_ROOT = "/Users/wangfengguo/LocalTools/data/DUODataSet"
+VOC_ROOT = os.path.join(SRC_ROOT, "VOCdevkit", "VOC2012")
 
 def create_voc_structure(voc_root, image_folder):
     voc_dirs = [

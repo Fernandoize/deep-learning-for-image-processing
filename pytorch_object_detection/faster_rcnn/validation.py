@@ -98,7 +98,7 @@ def main(parser_data):
     }
 
     # read class_indict
-    label_json_path = '../duo/pascal_voc_classes.json'
+    label_json_path = '../dataset/pascal_voc_classes.json'
     assert os.path.exists(label_json_path), "json file {} dose not exist.".format(label_json_path)
     with open(label_json_path, 'r') as f:
         class_dict = json.load(f)

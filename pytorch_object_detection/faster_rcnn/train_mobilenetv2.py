@@ -68,7 +68,7 @@ def main():
 
     # load train data set
     # VOCdevkit -> VOC2012 -> ImageSets -> Main -> train.txt
-    train_dataset = VOCDataSet(VOC_root, "2012", data_transform["train"], "train.txt", "../duo/pascal_voc_classes.json")
+    train_dataset = VOCDataSet(VOC_root, "2012", data_transform["train"], "train.txt", "../dataset/pascal_voc_classes.json")
     train_sampler = None
 
     # 是否按图片相似高宽比采样图片组成batch
@@ -102,7 +102,7 @@ def main():
 
     # load validation data set
     # VOCdevkit -> VOC2012 -> ImageSets -> Main -> val.txt
-    val_dataset = VOCDataSet(VOC_root, "2012", data_transform["val"], "val.txt", "../duo/pascal_voc_classes.json")
+    val_dataset = VOCDataSet(VOC_root, "2012", data_transform["val"], "val.txt", "../dataset/pascal_voc_classes.json")
     val_data_loader = torch.utils.data.DataLoader(val_dataset,
                                                   batch_size=1,
                                                   shuffle=False,
