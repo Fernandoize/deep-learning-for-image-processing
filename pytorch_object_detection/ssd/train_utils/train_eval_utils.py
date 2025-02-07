@@ -88,7 +88,7 @@ def evaluate(model, data_loader, device, data_set=None):
     for images, targets in metric_logger.log_every(data_loader, 100, header):
         images = torch.stack(images, dim=0).to(device)
 
-        if device != torch.device("cpu"):
+        if device != torch.device("cpu") and device != torch.device("mps"):
             torch.cuda.synchronize(device)
 
         model_time = time.time()
