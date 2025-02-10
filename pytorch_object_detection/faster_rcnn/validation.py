@@ -14,6 +14,7 @@ import transforms
 from network_files import FasterRCNN
 from backbone import resnet50_fpn_backbone
 from my_dataset import VOCDataSet
+from pytorch_object_detection.faster_rcnn.change_backbone_with_fpn import create_model
 from train_utils import get_coco_api_from_dataset, CocoEvaluator
 
 
@@ -94,11 +95,11 @@ def main(parser_data):
     print("Using {} device training.".format(device.type))
 
     data_transform = {
-        "val": transforms.Compose([transforms.ToTensor()])
+        "test": transforms.Compose([transforms.ToTensor()])
     }
 
     # read class_indict
-    label_json_path = '../dataset/pascal_voc_classes.json'
+    label_json_path = './pascal_voc_classes.json'
     assert os.path.exists(label_json_path), "json file {} dose not exist.".format(label_json_path)
     with open(label_json_path, 'r') as f:
         class_dict = json.load(f)
@@ -126,8 +127,9 @@ def main(parser_data):
 
     # create model num_classes equal background + 20 classes
     # 注意，这里的norm_layer要和训练脚本中保持一致
-    backbone = resnet50_fpn_backbone(norm_layer=torch.nn.BatchNorm2d)
-    model = FasterRCNN(backbone=backbone, num_classes=parser_data.num_classes + 1)
+    # backbone = resnet50_fpn_backbone(norm_layer=torch.nn.BatchNorm2d)
+    # model = FasterRCNN(backbone=backbone, num_classes=parser_data.num_classes + 1)
+    model = create_model(num_classes=parser_data.num_classes + 1, model_name='mobilenetv3')
 
     # 载入你自己训练好的模型权重
     weights_path = parser_data.weights_path
@@ -188,6 +190,9 @@ def main(parser_data):
 
 
 if __name__ == "__main__":
+    """
+    python validation.py --num-classes=4 --data-path=/data/dfui --weights-path=./save_weights/resNetFpn-model-9-best-model.pth --batch_size=16
+    """
     import argparse
 
     parser = argparse.ArgumentParser(

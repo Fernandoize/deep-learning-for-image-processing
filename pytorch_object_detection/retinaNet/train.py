@@ -20,7 +20,7 @@ def create_model(num_classes):
     backbone = resnet50_fpn_backbone(norm_layer=torch.nn.BatchNorm2d,
                                      returned_layers=[2, 3, 4],
                                      extra_blocks=LastLevelP6P7(256, 256),
-                                     trainable_layers=3)
+                                     trainable_layers=5)
     model = RetinaNet(backbone, num_classes)
 
     # 载入预训练权重
@@ -36,7 +36,7 @@ def create_model(num_classes):
 
 
 def main(args):
-    device = torch.device(args.device if torch.cuda.is_available() else "cpu")
+    device = torch.device(args.device if torch.cuda.is_available() else "mps")
     print("Using {} device training.".format(device.type))
 
     results_file = "results{}.txt".format(datetime.datetime.now().strftime("%Y%m%d-%H%M%S"))
@@ -68,7 +68,8 @@ def main(args):
 
     # 注意这里的collate_fn是自定义的，因为读取的数据包括image和targets，不能直接使用默认的方法合成batch
     batch_size = args.batch_size
-    nw = min([os.cpu_count(), batch_size if batch_size > 1 else 0, 8])  # number of workers
+    # nw = min([os.cpu_count(), batch_size if batch_size > 1 else 0, 8])  # number of workers
+    nw = 0
     print('Using %g dataloader workers' % nw)
     if train_sampler:
         # 如果按照图片高宽比采样图片，dataloader中需要使用batch_sampler

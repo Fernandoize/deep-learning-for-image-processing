@@ -83,7 +83,7 @@ class LoadImagesAndLabels(Dataset):  # for training/testing
 
         # batch index
         # 将数据划分到一个个batch中
-        bi = np.floor(np.arange(n) / batch_size).astype(np.int)
+        bi = np.floor(np.arange(n) / batch_size).astype(int)
         # 记录数据集划分后的总batch数
         nb = bi[-1] + 1  # number of batches
 
@@ -158,7 +158,7 @@ class LoadImagesAndLabels(Dataset):  # for training/testing
                 elif mini > 1:
                     shapes[i] = [1, 1 / mini]
             # 计算每个batch输入网络的shape值(向上设置为32的整数倍)
-            self.batch_shapes = np.ceil(np.array(shapes) * img_size / 32. + pad).astype(np.int) * 32
+            self.batch_shapes = np.ceil(np.array(shapes) * img_size / 32. + pad).astype(int) * 32
 
         # cache labels
         self.imgs = [None] * n  # n为图像总数
@@ -236,7 +236,7 @@ class LoadImagesAndLabels(Dataset):  # for training/testing
                         # 放大裁剪目标的宽高
                         b[2:] = b[2:] * 1.3 + 30  # pad
                         # 将坐标格式从 x,y,w,h -> xmin,ymin,xmax,ymax
-                        b = xywh2xyxy(b.reshape(-1, 4)).revel().astype(np.int)
+                        b = xywh2xyxy(b.reshape(-1, 4)).revel().astype(int)
 
                         # 裁剪bbox坐标到图片内
                         b[[0, 2]] = np.clip[b[[0, 2]], 0, w]
