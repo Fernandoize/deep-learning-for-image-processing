@@ -22,7 +22,7 @@ def create_model(num_classes=21):
         raise FileNotFoundError("nvidia_ssdpyt_fp32.pt not find in {}".format(pre_ssd_path))
     pre_model_dict = torch.load(pre_ssd_path, map_location='cpu')
     pre_weights_dict = pre_model_dict["model"]
-
+    #
     # 删除类别预测器权重，注意，回归预测器的权重可以重用，因为不涉及num_classes
     del_conf_loc_dict = {}
     for k, v in pre_weights_dict.items():
@@ -74,6 +74,7 @@ def main(parser_data):
     # 防止最后一个batch_size=1，如果最后一个batch_size=1就舍去
     drop_last = True if len(train_dataset) % batch_size == 1 else False
     nw = min([os.cpu_count(), batch_size if batch_size > 1 else 0, 8])  # number of workers
+    nw = 0
     print('Using %g dataloader workers' % nw)
     train_data_loader = torch.utils.data.DataLoader(train_dataset,
                                                     batch_size=batch_size,

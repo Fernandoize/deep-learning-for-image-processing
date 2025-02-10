@@ -14,7 +14,6 @@ import transforms
 from network_files import FasterRCNN
 from backbone import resnet50_fpn_backbone
 from my_dataset import VOCDataSet
-from change_backbone_with_fpn import create_model
 from train_utils import get_coco_api_from_dataset, CocoEvaluator
 
 
@@ -95,11 +94,11 @@ def main(parser_data):
     print("Using {} device training.".format(device.type))
 
     data_transform = {
-        "test": transforms.Compose([transforms.ToTensor()])
+        "val": transforms.Compose([transforms.ToTensor()])
     }
 
     # read class_indict
-    label_json_path = './pascal_voc_classes.json'
+    label_json_path = '../dataset/pascal_voc_classes.json'
     assert os.path.exists(label_json_path), "json file {} dose not exist.".format(label_json_path)
     with open(label_json_path, 'r') as f:
         class_dict = json.load(f)
@@ -189,9 +188,6 @@ def main(parser_data):
 
 
 if __name__ == "__main__":
-    """
-    python validation.py --num-classes=4 --data-path=/data/dfui --weights-path=./save_weights/resNetFpn-model-9-best-model.pth --batch_size=16
-    """
     import argparse
 
     parser = argparse.ArgumentParser(

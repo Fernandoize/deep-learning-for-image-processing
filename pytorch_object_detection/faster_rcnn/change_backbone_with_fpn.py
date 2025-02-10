@@ -9,12 +9,27 @@ import transforms
 from network_files import FasterRCNN, AnchorsGenerator
 from my_dataset import VOCDataSet
 from backbone.mobilenetv3UccM import UCCM
+from network_files import FastRCNNPredictor
 from train_utils import GroupedBatchSampler, create_aspect_ratio_groups
 from train_utils import train_eval_utils as utils
 from backbone import BackboneWithFPN, LastLevelMaxPool
 import torchvision
-from torchvision.models.feature_extraction import create_feature_extractor
+from torchvision.models.feature_extraction import create_feature_extractor, get_graph_node_names
+from timm.models.swin_transformer import swin_base_patch4_window12_384
 
+
+def create_swin_transformer_backbone_with_fpn():
+    backbone = swin_base_patch4_window12_384(pretrained=True)
+    get_graph_node_names(backbone, )
+    print(list(backbone.named_children()))
+    return_layers = {'0.blocks.1': '0', '1.blocks.1': '1', '2': '2.blocks.1', '3.blocks.1': '3'}
+    # 提供给fpn的每个特征层channel
+    in_channels_list = [128, 256, 512, 1024]
+    new_backbone = create_feature_extractor(backbone, return_layers)
+    # img = torch.randn(1, 3, 224, 224)
+    # outputs = new_backbone(img)
+    # [print(f"{k} shape: {v.shape}") for k, v in outputs.items()]
+    return new_backbone, return_layers, in_channels_list
 
 def create_resnet_backbone_with_fpn():
     backbone = torchvision.models.resnet34(pretrained=False)
@@ -49,16 +64,10 @@ def create_efficientnet_backbone_with_fpn():
 def create_mobilenetv3_backbone_with_fpn():
     # --- mobilenet_v3_large fpn backbone --- #
     backbone = mobilenet_v3_large(pretrained=True)
-    # 动态插入 UCCM 模块
-    uccm_layers = nn.ModuleList([UCCM(in_channels=backbone.features[4].out_channels)])  # 根据目标层的输出通道数初始化 UCCM
-    # 替换目标层
-    backbone.features[4] = nn.Sequential(backbone.features[4], uccm_layers[0])
-    # print(backbone)
-    return_layers = {"features.6": "0",   # stride 8
-                     "features.12": "1",  # stride 16
-                     "features.16": "2"}  # stride 32
+    return_layers = {"13": "1",  # stride 16
+                     "16": "2"}  # stride 32
     # 提供给fpn的每个特征层channel
-    in_channels_list = [40, 112, 960]
+    in_channels_list = [160, 960]
     new_backbone = create_feature_extractor(backbone, return_layers)
     # img = torch.randn(1, 3, 224, 224)
     # outputs = new_backbone(img)
@@ -67,13 +76,15 @@ def create_mobilenetv3_backbone_with_fpn():
 
 
 def create_model(num_classes, model_name):
+    print(f"choose model: {model_name}")
     if model_name == "mobilenetv3":
         new_backbone, return_layers, in_channels_list = create_mobilenetv3_backbone_with_fpn()
     elif model_name == "efficientnet":
         new_backbone, return_layers, in_channels_list = create_efficientnet_backbone_with_fpn()
     elif model_name == "resnet":
         new_backbone, return_layers, in_channels_list = create_resnet_backbone_with_fpn()
-    print(f"choose model: {model_name}")
+    elif model_name == "swin":
+        new_backbone, return_layers, in_channels_list = create_swin_transformer_backbone_with_fpn()
     backbone_with_fpn = BackboneWithFPN(new_backbone,
                                         return_layers=return_layers,
                                         in_channels_list=in_channels_list,
@@ -81,12 +92,14 @@ def create_model(num_classes, model_name):
                                         extra_blocks=LastLevelMaxPool(),
                                         re_getter=False)
 
-    anchor_sizes = ((64,), (128,), (256,), (512,))
+    return_layer_size = len(return_layers)
+    anchor_sizes = ((32,), (64,), (128,), (256,), (512,))
     aspect_ratios = ((0.5, 1.0, 2.0),) * len(anchor_sizes)
     anchor_generator = AnchorsGenerator(sizes=anchor_sizes,
                                         aspect_ratios=aspect_ratios)
 
-    roi_pooler = torchvision.ops.MultiScaleRoIAlign(featmap_names=['0', '1', '2'],  # 在哪些特征层上进行RoIAlign pooling
+
+    roi_pooler = torchvision.ops.MultiScaleRoIAlign(featmap_names=return_layers.values(),  # 在哪些特征层上进行RoIAlign pooling
                                                     output_size=[7, 7],  # RoIAlign pooling输出特征矩阵尺寸
                                                     sampling_ratio=2)  # 采样率
 
@@ -226,7 +239,7 @@ def main(args):
             'epoch': epoch}
         if args.amp:
             save_files["scaler"] = scaler.state_dict()
-        torch.save(save_files, "./save_weights/resNetFpn-model-{}.pth".format(epoch))
+        torch.save(save_files, "./save_weights/mobileNetFPN-model-{}.pth".format(epoch))
 
     # plot loss and lr curve
     if len(train_loss) != 0 and len(learning_rate) != 0:
@@ -245,7 +258,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description=__doc__)
 
-    parser.add_argument('--model_name', default='mobilenetv3', help='model_name')
+    parser.add_argument('--model_name', default='swin', help='model_name')
     # 训练设备类型
     parser.add_argument('--device', default='cuda:0', help='device')
     # 训练数据集的根目录(VOCdevkit)

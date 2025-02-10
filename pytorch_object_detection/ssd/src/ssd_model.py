@@ -10,6 +10,7 @@ class Backbone(nn.Module):
     def __init__(self, pretrain_path=None):
         super(Backbone, self).__init__()
         net = resnet50()
+        # 六个输出特征层
         self.out_channels = [1024, 512, 512, 256, 256, 256]
 
         if pretrain_path is not None:
@@ -17,6 +18,7 @@ class Backbone(nn.Module):
 
         self.feature_extractor = nn.Sequential(*list(net.children())[:7])
 
+        # 对conv4 block1进行调整
         conv4_block1 = self.feature_extractor[-1][0]
 
         # 修改conv4_block1的步距，从2->1
@@ -40,7 +42,9 @@ class SSD300(nn.Module):
 
         self.num_classes = num_classes
         # out_channels = [1024, 512, 512, 256, 256, 256] for resnet50
+        # 构建额外层结构
         self._build_additional_features(self.feature_extractor.out_channels)
+        # 特征层每个cell生成的anchor数
         self.num_defaults = [4, 6, 6, 6, 4, 4]
         location_extractors = []
         confidence_extractors = []
@@ -48,7 +52,9 @@ class SSD300(nn.Module):
         # out_channels = [1024, 512, 512, 256, 256, 256] for resnet50
         for nd, oc in zip(self.num_defaults, self.feature_extractor.out_channels):
             # nd is number_default_boxes, oc is output_channel
+            # 位置预测器
             location_extractors.append(nn.Conv2d(oc, nd * 4, kernel_size=3, padding=1))
+            # 分类器
             confidence_extractors.append(nn.Conv2d(oc, nd * self.num_classes, kernel_size=3, padding=1))
 
         self.loc = nn.ModuleList(location_extractors)
@@ -70,6 +76,7 @@ class SSD300(nn.Module):
         # input_size = [1024, 512, 512, 256, 256, 256] for resnet50
         middle_channels = [256, 256, 128, 128, 128]
         for i, (input_ch, output_ch, middle_ch) in enumerate(zip(input_size[:-1], input_size[1:], middle_channels)):
+            # 后面5个特征层前三个特征层第二个卷积block stride=2, padding=1, 后面两个stride=1, padding=0
             padding, stride = (1, 2) if i < 3 else (0, 1)
             layer = nn.Sequential(
                 nn.Conv2d(input_ch, middle_ch, kernel_size=1, bias=False),

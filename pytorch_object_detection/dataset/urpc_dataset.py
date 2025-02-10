@@ -9,7 +9,7 @@ import shutil
 
 import xmltodict
 
-SRC_ROOT = "/Users/wangfengguo/LocalTools/data/DFUIDataSet"
+SRC_ROOT = "../../data_set/dfui"
 VOC_ROOT = os.path.join(SRC_ROOT, "VOCdevkit", "VOC2012")
 
 import os
@@ -38,6 +38,8 @@ def create_voc_xml(real_name, image_info, annotations, categories):
         obj = SubElement(annotation, 'object')
         name = SubElement(obj, 'name')
         name.text = categories[ann['category_id']]
+        difficult = SubElement(obj, 'difficult')
+        difficult.text = str(ann['iscrowd'])
         bbox = SubElement(obj, 'bndbox')
         xmin = SubElement(bbox, 'xmin')
         xmin.text = str(int(ann['bbox'][0]))
@@ -60,7 +62,6 @@ def save_voc_xml(xml_str, output_dir, image_id):
     xml_file = os.path.join(output_dir, f'{image_id}.xml')
     with open(xml_file, 'w') as f:
         f.write(xml_str)
-
 
 def create_voc_structure(voc_root):
     voc_dirs = [
@@ -94,10 +95,28 @@ def main():
         # 遍历所有图像
         file_names = set()
         src_images_folder = os.path.join(SRC_ROOT, "images")
-        for index, image_info in enumerate(coco_data['images']):
+        categories_count = {}
+
+        for index, image_info in enumerate(coco_data['images'][0:600]):
             image_id = image_info['id']
             image_name = image_info['file_name']
             annotations = [ann for ann in coco_data['annotations'] if ann['image_id'] == image_id]
+
+            has_waterweeds = False
+            for annotation in annotations:
+                category_id = annotation['category_id']
+                category_name = categories.get(category_id)
+                if category_name == 'waterweeds':
+                    has_waterweeds = True
+                    break
+                if category_name not in categories_count:
+                    categories_count[category_name] = 1
+                else:
+                    categories_count[category_name] += 1
+
+            if has_waterweeds:
+                continue
+
             # 这里filename使用类型+id,防止冲突
             file_name = f"{data_type}_{image_id}"
             if file_name in file_names:
@@ -106,7 +125,7 @@ def main():
             xml_str = create_voc_xml(file_name, image_info, annotations, categories)
             # 以image_id命名
             save_voc_xml(xml_str, voc_annotation_folder, f"{file_name}")
-            shutil.copy(os.path.join(src_images_folder, image_name), os.path.join(VOC_ROOT, voc_image_folder, f"{file_name}.jpg"))
+            shutil.copy(os.path.join(src_images_folder, image_name), os.path.join(voc_image_folder, f"{file_name}.jpg"))
             print(f"{data_type}: {index + 1}/{len(coco_data['images'])}", end="\r")
 
         try:
@@ -116,8 +135,9 @@ def main():
             print(e)
             exit(1)
         print(f"{data_type}.txt total file: {len(file_names)}")
+        print(f"{data_type}.total object: {categories_count}")
 
 
 if __name__ == '__main__':
     main()
-
+    # stat_category()

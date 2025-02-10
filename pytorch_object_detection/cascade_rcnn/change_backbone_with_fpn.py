@@ -2,43 +2,107 @@ import os
 import datetime
 
 import torch
+from torch import nn
+from torchvision.models import mobilenet_v3_large
 
 import transforms
-from backbone import resnet50_fpn_backbone, LastLevelP6P7
-from network_files import RetinaNet
+from network_files import FasterRCNN, AnchorsGenerator
 from my_dataset import VOCDataSet
+from backbone.mobilenetv3UccM import UCCM
 from train_utils import GroupedBatchSampler, create_aspect_ratio_groups
 from train_utils import train_eval_utils as utils
+from backbone import BackboneWithFPN, LastLevelMaxPool
+import torchvision
+from torchvision.models.feature_extraction import create_feature_extractor
 
 
-def create_model(num_classes):
-    # 创建retinanet_res50_fpn模型
-    # skip P2 because it generates too many anchors (according to their paper)
-    # 注意，这里的backbone默认使用的是FrozenBatchNorm2d，即不会去更新bn参数
-    # 目的是为了防止batch_size太小导致效果更差(如果显存很小，建议使用默认的FrozenBatchNorm2d)
-    # 如果GPU显存很大可以设置比较大的batch_size就可以将norm_layer设置为普通的BatchNorm2d
-    backbone = resnet50_fpn_backbone(norm_layer=torch.nn.BatchNorm2d,
-                                     returned_layers=[2, 3, 4],
-                                     extra_blocks=LastLevelP6P7(256, 256),
-                                     trainable_layers=5)
-    model = RetinaNet(backbone, num_classes)
+def create_resnet_backbone_with_fpn():
+    backbone = torchvision.models.resnet34(pretrained=False)
+    checkpoint = torch.load("backbone/resnet34.pth")
+    backbone.load_state_dict(checkpoint)
+    # print(backbone)
+    return_layers = {'layer1': '0', 'layer2': '1', 'layer3': '2'}
+    # 提供给fpn的每个特征层channel
+    in_channels_list = [64, 128, 256]
+    new_backbone = create_feature_extractor(backbone, return_layers)
+    img = torch.randn(1, 3, 224, 224)
+    outputs = new_backbone(img)
+    [print(f"{k} shape: {v.shape}") for k, v in outputs.items()]
+    return new_backbone, return_layers, in_channels_list
 
-    # 载入预训练权重
-    # https://download.pytorch.org/models/retinanet_resnet50_fpn_coco-eeacb38b.pth
-    weights_dict = torch.load("./backbone/retinanet_resnet50_fpn.pth", map_location='cpu')
-    # 删除分类器部分的权重，因为自己的数据集类别与预训练数据集类别(91)不一定致，如果载入会出现冲突
-    del_keys = ["head.classification_head.cls_logits.weight", "head.classification_head.cls_logits.bias"]
-    for k in del_keys:
-        del weights_dict[k]
-    print(model.load_state_dict(weights_dict, strict=False))
+
+def create_efficientnet_backbone_with_fpn():
+    backbone = torchvision.models.efficientnet_b0(pretrained=True)
+    # print(backbone)
+    return_layers = {"features.3": "0",  # stride 8
+                     "features.4": "1",  # stride 16
+                     "features.8": "2"}  # stride 32
+    # 提供给fpn的每个特征层channel
+    in_channels_list = [40, 80, 1280]
+    new_backbone = create_feature_extractor(backbone, return_layers)
+    img = torch.randn(1, 3, 224, 224)
+    outputs = new_backbone(img)
+    [print(f"{k} shape: {v.shape}") for k, v in outputs.items()]
+    return new_backbone, return_layers, in_channels_list
+
+
+def create_mobilenetv3_backbone_with_fpn():
+    # --- mobilenet_v3_large fpn backbone --- #
+    backbone = mobilenet_v3_large(pretrained=True)
+    # 动态插入 UCCM 模块
+    uccm_layers = nn.ModuleList([UCCM(in_channels=backbone.features[4].out_channels)])  # 根据目标层的输出通道数初始化 UCCM
+    # 替换目标层
+    backbone.features[4] = nn.Sequential(backbone.features[4], uccm_layers[0])
+    # print(backbone)
+    return_layers = {"features.6": "0",   # stride 8
+                     "features.12": "1",  # stride 16
+                     "features.16": "2"}  # stride 32
+    # 提供给fpn的每个特征层channel
+    in_channels_list = [40, 112, 960]
+    new_backbone = create_feature_extractor(backbone, return_layers)
+    # img = torch.randn(1, 3, 224, 224)
+    # outputs = new_backbone(img)
+    # [print(f"{k} shape: {v.shape}") for k, v in outputs.items()]
+    return new_backbone, return_layers, in_channels_list
+
+
+def create_model(num_classes, model_name):
+    if model_name == "mobilenetv3":
+        new_backbone, return_layers, in_channels_list = create_mobilenetv3_backbone_with_fpn()
+    elif model_name == "efficientnet":
+        new_backbone, return_layers, in_channels_list = create_efficientnet_backbone_with_fpn()
+    elif model_name == "resnet":
+        new_backbone, return_layers, in_channels_list = create_resnet_backbone_with_fpn()
+    print(f"choose model: {model_name}")
+    backbone_with_fpn = BackboneWithFPN(new_backbone,
+                                        return_layers=return_layers,
+                                        in_channels_list=in_channels_list,
+                                        out_channels=256,
+                                        extra_blocks=LastLevelMaxPool(),
+                                        re_getter=False)
+
+    anchor_sizes = ((64,), (128,), (256,), (512,))
+    aspect_ratios = ((0.5, 1.0, 2.0),) * len(anchor_sizes)
+    anchor_generator = AnchorsGenerator(sizes=anchor_sizes,
+                                        aspect_ratios=aspect_ratios)
+
+    roi_pooler = torchvision.ops.MultiScaleRoIAlign(featmap_names=['0', '1', '2'],  # 在哪些特征层上进行RoIAlign pooling
+                                                    output_size=[7, 7],  # RoIAlign pooling输出特征矩阵尺寸
+                                                    sampling_ratio=2)  # 采样率
+
+    model = FasterRCNN(backbone=backbone_with_fpn,
+                       num_classes=num_classes,
+                       rpn_anchor_generator=anchor_generator,
+                       box_roi_pool=roi_pooler)
 
     return model
 
 
 def main(args):
-    device = torch.device(args.device if torch.cuda.is_available() else "mps")
+    device = torch.device(args.device if torch.cuda.is_available() else "cpu")
     print("Using {} device training.".format(device.type))
 
+    # 用来保存coco_info的文件
     results_file = "results{}.txt".format(datetime.datetime.now().strftime("%Y%m%d-%H%M%S"))
 
     data_transform = {
@@ -68,8 +132,7 @@ def main(args):
 
     # 注意这里的collate_fn是自定义的，因为读取的数据包括image和targets，不能直接使用默认的方法合成batch
     batch_size = args.batch_size
-    # nw = min([os.cpu_count(), batch_size if batch_size > 1 else 0, 8])  # number of workers
-    nw = 0
+    nw = min([os.cpu_count(), batch_size if batch_size > 1 else 0, 8])  # number of workers
     print('Using %g dataloader workers' % nw)
     if train_sampler:
         # 如果按照图片高宽比采样图片，dataloader中需要使用batch_sampler
@@ -89,24 +152,25 @@ def main(args):
     # load validation data set
     # VOCdevkit -> VOC2012 -> ImageSets -> Main -> val.txt
     val_dataset = VOCDataSet(VOC_root, "2012", data_transform["val"], "val.txt")
-    val_data_loader = torch.utils.data.DataLoader(val_dataset,
-                                                  batch_size=1,
-                                                  shuffle=False,
-                                                  pin_memory=True,
-                                                  num_workers=nw,
-                                                  collate_fn=val_dataset.collate_fn)
+    val_data_set_loader = torch.utils.data.DataLoader(val_dataset,
+                                                      batch_size=1,
+                                                      shuffle=False,
+                                                      pin_memory=True,
+                                                      num_workers=nw,
+                                                      collate_fn=val_dataset.collate_fn)
 
-    # create model
-    # 注意：不包含背景
-    model = create_model(num_classes=args.num_classes)
+    # create model num_classes equal background + 20 classes
+    model = create_model(num_classes=args.num_classes + 1, model_name=args.model_name)
     # print(model)
 
     model.to(device)
 
     # define optimizer
     params = [p for p in model.parameters() if p.requires_grad]
-    optimizer = torch.optim.SGD(params, lr=0.005,
-                                momentum=0.9, weight_decay=0.0005)
+    optimizer = torch.optim.SGD(params,
+                                lr=args.lr,
+                                momentum=args.momentum,
+                                weight_decay=args.weight_decay)
 
     scaler = torch.cuda.amp.GradScaler() if args.amp else None
 
@@ -133,8 +197,9 @@ def main(args):
     for epoch in range(args.start_epoch, args.epochs):
         # train for one epoch, printing every 10 iterations
         mean_loss, lr = utils.train_one_epoch(model, optimizer, train_data_loader,
-                                              device, epoch, print_freq=50,
-                                              warmup=True, scaler=scaler)
+                                              device=device, epoch=epoch,
+                                              print_freq=50, warmup=True,
+                                              scaler=scaler)
         train_loss.append(mean_loss.item())
         learning_rate.append(lr)
 
@@ -142,7 +207,7 @@ def main(args):
         lr_scheduler.step()
 
         # evaluate on the test dataset
-        coco_info = utils.evaluate(model, val_data_loader, device=device)
+        coco_info = utils.evaluate(model, val_data_set_loader, device=device)
 
         # write into txt
         with open(results_file, "a") as f:
@@ -151,7 +216,7 @@ def main(args):
             txt = "epoch:{} {}".format(epoch, '  '.join(result_info))
             f.write(txt + "\n")
 
-        val_map.append(coco_info[1])  # pascal map
+        val_map.append(coco_info[1])  # pascal mAP
 
         # save weights
         save_files = {
@@ -180,12 +245,13 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description=__doc__)
 
+    parser.add_argument('--model_name', default='mobilenetv3', help='model_name')
     # 训练设备类型
     parser.add_argument('--device', default='cuda:0', help='device')
     # 训练数据集的根目录(VOCdevkit)
-    parser.add_argument('--data-path', default='/data', help='dataset')
+    parser.add_argument('--data-path', default='/Users/wangfengguo/LocalTools/data/DFUIDataSet', help='dataset')
     # 检测目标类别数(不包含背景)
-    parser.add_argument('--num-classes', default=20, type=int, help='num_classes')
+    parser.add_argument('--num-classes', default=5, type=int, help='num_classes')
     # 文件保存地址
     parser.add_argument('--output-dir', default='./save_weights', help='path where to save')
     # 若需要接着上次训练，则指定上次训练保存权重文件地址
@@ -195,6 +261,17 @@ if __name__ == "__main__":
     # 训练的总epoch数
     parser.add_argument('--epochs', default=15, type=int, metavar='N',
                         help='number of total epochs to run')
+    # 学习率
+    parser.add_argument('--lr', default=0.005, type=float,
+                        help='initial learning rate, 0.02 is the default value for training '
+                             'on 8 gpus and 2 images_per_gpu')
+    # SGD的momentum参数
+    parser.add_argument('--momentum', default=0.9, type=float, metavar='M',
+                        help='momentum')
+    # SGD的weight_decay参数
+    parser.add_argument('--wd', '--weight-decay', default=1e-4, type=float,
+                        metavar='W', help='weight decay (default: 1e-4)',
+                        dest='weight_decay')
     # 训练的batch size
     parser.add_argument('--batch_size', default=4, type=int, metavar='N',
                         help='batch size when training.')
