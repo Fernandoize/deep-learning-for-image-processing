@@ -10,10 +10,11 @@ import numpy as np
 import torch.optim as optim
 from tqdm import tqdm
 
-from model import AlexNet
+from model import AlexNet, AlexNetFPN
 
 
 def main():
+    resume = False
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     print("using {} device.".format(device))
 
@@ -27,10 +28,9 @@ def main():
                                    transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])}
 
     data_root = os.path.abspath(os.path.join(os.getcwd(), "../.."))  # get data root path
-    image_path = os.path.join(data_root, "data_set", "flower_data")  # flower data set path
-    assert os.path.exists(image_path), "{} path does not exist.".format(image_path)
-    train_dataset = datasets.ImageFolder(root=os.path.join(image_path, "train"),
-                                         transform=data_transform["train"])
+    # image_path = os.path.join(data_root, "data_set", "flower_data")  # flower data set path
+    # assert os.path.exists(image_path), "{} path does not exist.".format(image_path)
+    train_dataset = datasets.CIFAR10(root="../../data_set", train=True, transform=data_transform["train"], download=True)
     train_num = len(train_dataset)
 
     # {'daisy':0, 'dandelion':1, 'roses':2, 'sunflower':3, 'tulips':4}
@@ -49,8 +49,8 @@ def main():
                                                batch_size=batch_size, shuffle=True,
                                                num_workers=nw)
 
-    validate_dataset = datasets.ImageFolder(root=os.path.join(image_path, "val"),
-                                            transform=data_transform["val"])
+    validate_dataset = datasets.CIFAR10(root="../../data_set", train=False, transform=data_transform["val"], download=True)
+
     val_num = len(validate_dataset)
     validate_loader = torch.utils.data.DataLoader(validate_dataset,
                                                   batch_size=4, shuffle=False,
@@ -70,7 +70,11 @@ def main():
     # print(' '.join('%5s' % cla_dict[test_label[j].item()] for j in range(4)))
     # imshow(utils.make_grid(test_image))
 
-    net = AlexNet(num_classes=5, init_weights=True)
+    net = AlexNetFPN(num_classes=10, init_weights=True)
+    if resume:
+        missing_keys, unexpected_keys = net.load_state_dict(torch.load("AlexNet_FPN.pth", map_location=device),
+                                                            strict=False)
+        print("missing keys: {}".format(missing_keys))
 
     net.to(device)
     loss_function = nn.CrossEntropyLoss()
@@ -78,7 +82,6 @@ def main():
     optimizer = optim.Adam(net.parameters(), lr=0.0002)
 
     epochs = 10
-    save_path = './AlexNet.pth'
     best_acc = 0.0
     train_steps = len(train_loader)
     for epoch in range(epochs):
@@ -118,7 +121,7 @@ def main():
 
         if val_accurate > best_acc:
             best_acc = val_accurate
-            torch.save(net.state_dict(), save_path)
+            torch.save(net.state_dict(), f'./AlexNet_{epoch}.pth')
 
     print('Finished Training')
 

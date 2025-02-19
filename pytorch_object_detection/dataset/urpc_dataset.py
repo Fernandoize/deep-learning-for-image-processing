@@ -9,7 +9,7 @@ import shutil
 
 import xmltodict
 
-SRC_ROOT = "../../data_set/dfui"
+SRC_ROOT = "/home/wangfengguo/dev/data/dfui"
 VOC_ROOT = os.path.join(SRC_ROOT, "VOCdevkit", "VOC2012")
 
 import os
@@ -56,12 +56,14 @@ def create_voc_xml(real_name, image_info, annotations, categories):
 
     return pretty_xml
 
+
 def save_voc_xml(xml_str, output_dir, image_id):
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
     xml_file = os.path.join(output_dir, f'{image_id}.xml')
     with open(xml_file, 'w') as f:
         f.write(xml_str)
+
 
 def create_voc_structure(voc_root):
     voc_dirs = [

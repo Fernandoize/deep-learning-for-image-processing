@@ -82,6 +82,7 @@ class AnchorsGenerator(nn.Module):
         """
         scales = torch.as_tensor(scales, dtype=dtype, device=device)
         aspect_ratios = torch.as_tensor(aspect_ratios, dtype=dtype, device=device)
+        #  h / w = aspect_ratios
         h_ratios = torch.sqrt(aspect_ratios)
         w_ratios = 1.0 / h_ratios
 
@@ -112,6 +113,7 @@ class AnchorsGenerator(nn.Module):
             self.generate_anchors(sizes, aspect_ratios, dtype, device)
             for sizes, aspect_ratios in zip(self.sizes, self.aspect_ratios)
         ]
+        # 从浅层特征到深层特征依次排列
         self.cell_anchors = cell_anchors
 
     def num_anchors_per_location(self):
@@ -200,6 +202,7 @@ class AnchorsGenerator(nn.Module):
         # 计算/读取所有anchors的坐标信息（这里的anchors信息是映射到原图上的所有anchors信息，不是anchors模板）
         # 得到的是一个list列表，对应每张预测特征图映射回原图的anchors坐标信息
         # 这里将所有的特征层生成的anchor按顺序排列，每个数量为 grid_area * 9
+        # grid_sizes 是特征层的大小,stride 是原图到特征层的缩放比例
         anchors_over_all_feature_maps = self.cached_grid_anchors(grid_sizes, strides)
 
         anchors = torch.jit.annotate(List[List[torch.Tensor]], [])
@@ -231,8 +234,13 @@ class RPNHead(nn.Module):
     """
 
     def __init__(self, in_channels, num_anchors):
+        """
+        如果是FPN, 每个特征层上单个像素预测三个比例的窗口，所以一共3个anchors
+        :param in_channels:
+        :param num_anchors:
+        """
         super(RPNHead, self).__init__()
-        # 3x3 滑动窗口
+        # 3x3 滑动窗口, 不改变特征大小
         self.conv = nn.Conv2d(in_channels, in_channels, kernel_size=3, stride=1, padding=1)
         # 计算预测的目标分数（这里的目标只是指前景或者背景）
         self.cls_logits = nn.Conv2d(in_channels, num_anchors, kernel_size=1, stride=1)
@@ -626,9 +634,11 @@ class RegionProposalNetwork(torch.nn.Module):
 
         # 计算每个预测特征层上的预测目标概率和bboxes regression参数
         # objectness和pred_bbox_deltas都是list
+        # objectness 为类别，pred_bbox_deltas 为预测框的位置信息
         objectness, pred_bbox_deltas = self.head(features)
 
         # 生成一个batch图像的所有anchors信息,list(tensor)元素个数等于batch_size
+        # TODO 这一步的耗时可以测试下
         anchors = self.anchor_generator(images, features)
 
         # batch_size

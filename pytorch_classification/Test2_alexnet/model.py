@@ -1,6 +1,9 @@
 import torch.nn as nn
-import torch
 from torchinfo import summary
+from torchvision.models.feature_extraction import create_feature_extractor
+from torchvision.ops.feature_pyramid_network import LastLevelMaxPool
+
+from feature_pyramid_network import BackboneWithFPN
 
 
 class AlexNet(nn.Module):
@@ -54,73 +57,38 @@ class AlexNet(nn.Module):
 
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 
 
-class AlexNetFPN(AlexNet):
-    def __init__(self, num_classes=1000):
+class AlexNetFPN(nn.Module):
+    def __init__(self, num_classes=5, init_weights=True, **kwargs):
         super(AlexNetFPN, self).__init__()
+        self.alex_net = AlexNet(num_classes=num_classes, init_weights=init_weights)
 
-        # Lateral connections for FPN
-        # 1 * 1 卷积降维操作
-        self.lateral_5 = nn.Conv2d(128, 128, kernel_size=1)  # For last layer
-        self.lateral_4 = nn.Conv2d(192, 128, kernel_size=1)  # For 4th layer
-        self.lateral_3 = nn.Conv2d(192, 128, kernel_size=1)  # For 3rd layer
-        self.lateral_2 = nn.Conv2d(128, 128, kernel_size=1)  # For 3rd layer
-        self.lateral_1 = nn.Conv2d(48, 128, kernel_size=1)  # For 3rd layer
-
-        # FPN output layers
-        self.fpn_5 = nn.Conv2d(128, 128, kernel_size=3, padding=1)
-        self.fpn_4 = nn.Conv2d(128, 128, kernel_size=3, padding=1)
-        self.fpn_3 = nn.Conv2d(128, 128, kernel_size=3, padding=1)
-        self.fpn_2 = nn.Conv2d(128, 128, kernel_size=3, padding=1)
-        self.fpn_1 = nn.Conv2d(128, 128, kernel_size=3, padding=1)
-        self.avgpool = nn.AdaptiveAvgPool2d((6, 6))
-
-    def _upsample_add(self, x, y):
-        """Upsample and add two feature maps.
-            高层特征抽象含义更多，但分辨率低，通过特征金字塔，将高分辨率和高层特征结合起来
-        """
-        _, _, H, W = y.size()
-        return F.interpolate(x, size=(H, W), mode='bilinear', align_corners=True) + y
+        return_layers = {
+            "features.0": "0",
+            "features.3": "1",
+            "features.6": "2",
+            "features.8": "3",
+            "features.10": "4"
+        }  # stride 32
+        # 提供给fpn的每个特征层channel
+        name_modules = dict(self.alex_net.named_modules())
+        in_channels_list = [name_modules[layer_name].out_channels for layer_name in return_layers.keys()]
+        new_backbone = create_feature_extractor(self.alex_net, return_layers)
+        self.backbone_with_fpn = BackboneWithFPN(new_backbone,
+                                            return_layers=return_layers,
+                                            in_channels_list=in_channels_list,
+                                            out_channels=128,
+                                            extra_blocks=LastLevelMaxPool(),
+                                            re_getter=False)
 
     def forward(self, x):
-        # Store intermediate features
-        features = []
-        for i, layer in enumerate(self.features):
-            x = layer(x)
-            if i in [0, 3, 6, 8, 10]:  # Store features after 3rd, 4th, and 5th conv layers
-                features.append(x)
-
-        # Build FPN features
-        c1, c2, c3, c4, c5 = features
-
-        # FPN top-down pathway and lateral connections
-        p5 = self.lateral_5(c5)
-        p4 = self._upsample_add(p5, self.lateral_4(c4))
-        p3 = self._upsample_add(p4, self.lateral_3(c3))
-        p2 = self._upsample_add(p3, self.lateral_2(c2))
-        p1 = self._upsample_add(p2, self.lateral_1(c1))
-
-        # FPN output layers
-        p5 = self.fpn_5(p5)
-        p4 = self.fpn_4(p4)
-        p3 = self.fpn_3(p3)
-        p2 = self.fpn_2(p2)
-        p1 = self.fpn_1(p1)
-
-
-        # Use p5 for classification (you could modify this to use all pyramid levels)
-        x = self.avgpool(p1)
-        x = torch.flatten(x, 1)
-        x = self.classifier(x)
-
-        # Return all pyramid features and classification output
-        return {
-            'out': x,
-            'features': [p1, p2, p3, p4, p5]
-        }
-
+        x = self.backbone_with_fpn(x)
+        x = x['0']
+        x = self.alex_net.avg_pool(x)
+        x = torch.flatten(x, start_dim=1)
+        x = self.alex_net.classifier(x)
+        return x
 
 
 if __name__ == '__main__':
@@ -129,6 +97,13 @@ if __name__ == '__main__':
     Linear占比: 90%
     58.37M
     """
-    model = AlexNet(num_classes=5, init_weights=True)
+    model = AlexNetFPN(num_classes=5, init_weights=True)
     input = torch.randn(1, 3, 224, 224)
     summary(model, (1, 3, 224, 224))
+
+    # 第一种融合：从高到低融合，取低层或中层
+    # 第二种融合：从低到高融合，取高层或中层
+    # 第三种融合：双向融合，取高、中、低层
+
+    # 第四种融合方式：加法融合，拼接融合 理论来源
+    #

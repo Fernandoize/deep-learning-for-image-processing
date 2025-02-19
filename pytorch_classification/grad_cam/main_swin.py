@@ -47,7 +47,7 @@ def main():
     weights_path = "./swin_base_patch4_window7_224.pth"
     model.load_state_dict(torch.load(weights_path, map_location="cpu")["model"], strict=False)
 
-    target_layers = [model.norm]
+    target_layers = [model.layers[0]]
 
     data_transform = transforms.Compose([transforms.ToTensor(),
                                          transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])])

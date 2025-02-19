@@ -1,19 +1,34 @@
-import os
-import sys
 import json
+import os
+import random
+import sys
 
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
 from torchvision import transforms, datasets
 from tqdm import tqdm
 
-from model_v2 import MobileNetV2
 from pytorch_classification.Test6_mobilenet.model_v3 import mobilenet_v3_large
 
 
+def fix_seed():
+    seed = 42
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed(seed)
+        torch.cuda.manual_seed_all(seed)
+        torch.backends.cudnn.deterministic = True
+        torch.backends.cudnn.benchmark = False
+    torch.use_deterministic_algorithms(True)
+
+
 def main():
-    device = torch.device("cuda:0" if torch.cuda.is_available() else "mps")
+    fix_seed()
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     print("using {} device.".format(device))
 
     batch_size = 16
@@ -44,7 +59,8 @@ def main():
     with open('class_indices.json', 'w') as json_file:
         json_file.write(json_str)
 
-    nw = min([os.cpu_count(), batch_size if batch_size > 1 else 0, 8])  # number of workers
+    # nw = min([os.cpu_count(), batch_size if batch_size > 1 else 0, 8])  # number of workers
+    nw = 0
     print('Using {} dataloader workers every process'.format(nw))
 
     train_loader = torch.utils.data.DataLoader(train_dataset,
@@ -66,7 +82,7 @@ def main():
 
     # load pretrain weights
     # download url: https://download.pytorch.org/models/mobilenet_v2-b0353104.pth
-    model_weight_path = "./flower/mobilenet_v3_large-8738ca79.pth"
+    model_weight_path = "./mobilenet_v3_large.pth"
     assert os.path.exists(model_weight_path), "file {} dose not exist.".format(model_weight_path)
     pre_weights = torch.load(model_weight_path, map_location=device)
 

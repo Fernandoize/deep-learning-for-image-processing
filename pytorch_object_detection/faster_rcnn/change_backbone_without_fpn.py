@@ -2,6 +2,7 @@ import os
 import datetime
 
 import torch
+from torchvision.ops import FrozenBatchNorm2d
 
 import transforms
 from network_files import FasterRCNN, AnchorsGenerator

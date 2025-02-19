@@ -28,3 +28,4 @@ data_set/.DS_Store
 */flower_photo/*
 */flower_photos/*
 *.txt
+cifar-*

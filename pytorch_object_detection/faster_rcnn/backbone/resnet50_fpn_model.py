@@ -183,6 +183,7 @@ def resnet50_fpn_backbone(pretrain_path="",
         extra_blocks = LastLevelMaxPool()
 
     if returned_layers is None:
+        # 指的是第1，2，3，4层
         returned_layers = [1, 2, 3, 4]
     # 返回的特征层个数肯定大于0小于5
     assert min(returned_layers) > 0 and max(returned_layers) < 5
@@ -197,3 +198,5 @@ def resnet50_fpn_backbone(pretrain_path="",
     # 通过fpn后得到的每个特征层的channel
     out_channels = 256
     return BackboneWithFPN(resnet_backbone, return_layers, in_channels_list, out_channels, extra_blocks=extra_blocks)
+
+

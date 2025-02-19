@@ -4,14 +4,16 @@ import torch
 from PIL import Image
 import matplotlib.pyplot as plt
 from torchvision import transforms
+from torchvision.models import vit_b_16
+
 from utils import GradCAM, show_cam_on_image, center_crop_img
 from vit_model import vit_base_patch16_224
 
 
 class ReshapeTransform:
     def __init__(self, model):
-        input_size = model.patch_embed.img_size
-        patch_size = model.patch_embed.patch_size
+        input_size = (model.image_size, model.image_size)
+        patch_size = (model.patch_size, model.patch_size)
         self.h = input_size[0] // patch_size[0]
         self.w = input_size[1] // patch_size[1]
 
@@ -31,7 +33,7 @@ class ReshapeTransform:
 
 
 def main():
-    model = vit_base_patch16_224()
+    model = vit_b_16(pretrained=False)
     # 链接: https://pan.baidu.com/s/1zqb08naP0RPqqfSXfkB2EA  密码: eu9f
     weights_path = "./vit_base_patch16_224.pth"
     model.load_state_dict(torch.load(weights_path, map_location="cpu"))
@@ -39,7 +41,7 @@ def main():
     # the output will not be affected by the 14x14 channels in the last layer.
     # The gradient of the output with respect to them, will be 0!
     # We should chose any layer before the final attention block.
-    target_layers = [model.blocks[-1].norm1]
+    target_layers = [model.encoder.layers[1].dropout]
 
     data_transform = transforms.Compose([transforms.ToTensor(),
                                          transforms.Normalize([0.5, 0.5, 0.5], [0.5, 0.5, 0.5])])
