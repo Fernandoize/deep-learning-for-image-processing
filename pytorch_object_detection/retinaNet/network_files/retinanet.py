@@ -307,6 +307,7 @@ class RetinaNet(nn.Module):
                 "same for all the levels)"
             )
 
+        # backbone为resnet
         self.backbone = backbone
 
         assert isinstance(anchor_generator, (AnchorsGenerator, type(None)))
@@ -315,6 +316,7 @@ class RetinaNet(nn.Module):
             # 原论文中说在每个预测特征层上除了使用给定的尺度x外，还要额外添加x*2^(1/3)和x*2^(2/3)这两个尺度
             # 五个预测特征层采用的原始尺度分别为32， 64， 128， 256， 512
             # 注意尺度和面积的关系，面积=尺度^2
+            # 这里的尺度是固定的尺度，是从数据得到的先验信息, 这个先验信息的好坏和结果之间的关系有人探究过吗？
             anchor_sizes = tuple((x, int(x * 2 ** (1.0 / 3)), int(x * 2 ** (2.0 / 3)))
                                  for x in [32, 64, 128, 256, 512])
             # 对于每个预测特征层上anchors，都会使用三种比例

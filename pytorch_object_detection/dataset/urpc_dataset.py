@@ -9,7 +9,7 @@ import shutil
 
 import xmltodict
 
-SRC_ROOT = "/home/wangfengguo/dev/data/dfui"
+SRC_ROOT = "../../data_set/dfui"
 VOC_ROOT = os.path.join(SRC_ROOT, "VOCdevkit", "VOC2012")
 
 import os
@@ -35,6 +35,11 @@ def create_voc_xml(real_name, image_info, annotations, categories):
 
     # 添加标注信息
     for ann in annotations:
+        category_name = categories[ann['category_id']]
+        if category_name == 'waterweeds':
+            print(f"skip waterweeds annotation {real_name}")
+            continue
+
         obj = SubElement(annotation, 'object')
         name = SubElement(obj, 'name')
         name.text = categories[ann['category_id']]
@@ -99,25 +104,19 @@ def main():
         src_images_folder = os.path.join(SRC_ROOT, "images")
         categories_count = {}
 
-        for index, image_info in enumerate(coco_data['images'][0:600]):
+        for index, image_info in enumerate(coco_data['images']):
             image_id = image_info['id']
             image_name = image_info['file_name']
             annotations = [ann for ann in coco_data['annotations'] if ann['image_id'] == image_id]
 
-            has_waterweeds = False
             for annotation in annotations:
                 category_id = annotation['category_id']
                 category_name = categories.get(category_id)
-                if category_name == 'waterweeds':
-                    has_waterweeds = True
-                    break
+
                 if category_name not in categories_count:
                     categories_count[category_name] = 1
                 else:
                     categories_count[category_name] += 1
-
-            if has_waterweeds:
-                continue
 
             # 这里filename使用类型+id,防止冲突
             file_name = f"{data_type}_{image_id}"

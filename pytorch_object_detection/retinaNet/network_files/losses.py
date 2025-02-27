@@ -31,9 +31,12 @@ def sigmoid_focal_loss(
         Loss tensor with the reduction option applied.
     """
     p = torch.sigmoid(inputs)
+    # 本身的交叉熵
     ce_loss = F.binary_cross_entropy_with_logits(
         inputs, targets, reduction="none"
     )
+
+    #  这里实际上为向量乘法，如果以分类下单个向量元素来计算, 加入该元素
     p_t = p * targets + (1 - p) * (1 - targets)
     loss = ce_loss * ((1 - p_t) ** gamma)
 
@@ -47,3 +50,9 @@ def sigmoid_focal_loss(
         loss = loss.sum()
 
     return loss
+
+
+if __name__ == '__main__':
+    input = torch.Tensor([0.1, 0.2, 0.7])
+    target = torch.Tensor([0, 0, 1])
+    loss = sigmoid_focal_loss(input, target, alpha=0, gamma=2)
