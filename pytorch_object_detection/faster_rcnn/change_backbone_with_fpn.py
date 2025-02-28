@@ -65,10 +65,11 @@ def create_efficientnet_backbone_with_fpn():
 def create_mobilenetv3_backbone_with_fpn():
     # --- mobilenet_v3_large fpn backbone --- #
     backbone = mobilenet_v3_large(pretrained=True)
-    return_layers = {"13": "1",  # stride 16
-                     "16": "2"}  # stride 32
+    return_layers = {"features.6": "0",   # stride 8
+                     "features.12": "1",  # stride 16
+                     "features.16": "2"}  # stride 32
     # 提供给fpn的每个特征层channel
-    in_channels_list = [160, 960]
+    in_channels_list = [40, 112, 960]
     new_backbone = create_feature_extractor(backbone, return_layers)
     # img = torch.randn(1, 3, 224, 224)
     # outputs = new_backbone(img)
@@ -146,7 +147,8 @@ def main(args):
 
     # 注意这里的collate_fn是自定义的，因为读取的数据包括image和targets，不能直接使用默认的方法合成batch
     batch_size = args.batch_size
-    nw = min([os.cpu_count(), batch_size if batch_size > 1 else 0, 8])  # number of workers
+    # nw = min([os.cpu_count(), batch_size if batch_size > 1 else 0, 8])  # number of workers
+    nw = 0
     print('Using %g dataloader workers' % nw)
     if train_sampler:
         # 如果按照图片高宽比采样图片，dataloader中需要使用batch_sampler
@@ -254,29 +256,29 @@ def main(args):
 
 
 if __name__ == "__main__":
-    data_transform = {
-        "train": transforms.Compose([transforms.ToTensor(),
-                                     transforms.RandomHorizontalFlip(0.5)]),
-        "val": transforms.Compose([transforms.ToTensor()])
-    }
-    train_dataset = VOCDataSet("../../data_set/dfui", "2012", data_transform["train"], "train.txt")
-    model = create_model(num_classes=5, model_name="resnet")
-    image = [train_dataset[0][0], train_dataset[1][0]]
-    model.eval()
-    model(image)
+    # data_transform = {
+    #     "train": transforms.Compose([transforms.ToTensor(),
+    #                                  transforms.RandomHorizontalFlip(0.5)]),
+    #     "val": transforms.Compose([transforms.ToTensor()])
+    # }
+    # train_dataset = VOCDataSet("../../data_set/dfui", "2012", data_transform["train"], "train.txt")
+    # model = create_model(num_classes=5, model_name="resnet")
+    # image = [train_dataset[0][0], train_dataset[1][0]]
+    # model.eval()
+    # model(image)
 
     import argparse
 
     parser = argparse.ArgumentParser(
         description=__doc__)
 
-    parser.add_argument('--model_name', default='efficientnet', help='model_name')
+    parser.add_argument('--model_name', default='mobilenetv3', help='model_name')
     # 训练设备类型
     parser.add_argument('--device', default='cuda:0', help='device')
     # 训练数据集的根目录(VOCdevkit)
-    parser.add_argument('--data-path', default='/data', help='dataset')
+    parser.add_argument('--data-path', default='../../data_set/dfui', help='dataset')
     # 检测目标类别数(不包含背景)
-    parser.add_argument('--num-classes', default=5, type=int, help='num_classes')
+    parser.add_argument('--num-classes', default=4, type=int, help='num_classes')
     # 文件保存地址
     parser.add_argument('--output-dir', default='./save_weights', help='path where to save')
     # 若需要接着上次训练，则指定上次训练保存权重文件地址
@@ -298,7 +300,7 @@ if __name__ == "__main__":
                         metavar='W', help='weight decay (default: 1e-4)',
                         dest='weight_decay')
     # 训练的batch size
-    parser.add_argument('--batch_size', default=4, type=int, metavar='N',
+    parser.add_argument('--batch_size', default=32, type=int, metavar='N',
                         help='batch size when training.')
     parser.add_argument('--aspect-ratio-group-factor', default=3, type=int)
     # 是否使用混合精度训练(需要GPU支持混合精度)

@@ -6,6 +6,8 @@ import torch.nn.functional as F
 
 from . import det_utils
 from . import boxes as box_ops
+from .boxes import assign_iou_targets
+from .g_focal_loss import GFocalLoss
 
 
 def fastrcnn_loss(class_logits, box_regression, labels, regression_targets):
@@ -99,6 +101,7 @@ class RoIHeads(torch.nn.Module):
         self.score_thresh = score_thresh  # default: 0.05
         self.nms_thresh = nms_thresh      # default: 0.5
         self.detection_per_img = detection_per_img  # default: 100
+        self.gfocal_loss = GFocalLoss()
 
     def assign_targets_to_proposals(self, proposals, gt_boxes, gt_labels):
         # type: (List[Tensor], List[Tensor], List[Tensor]) -> Tuple[List[Tensor], List[Tensor]]
@@ -390,8 +393,12 @@ class RoIHeads(torch.nn.Module):
         losses = {}
         if self.training:
             assert labels is not None and regression_targets is not None
-            loss_classifier, loss_box_reg = fastrcnn_loss(
-                class_logits, box_regression, labels, regression_targets)
+            dtype = proposals[0].dtype
+            gt_boxes = [t["boxes"].to(dtype) for t in targets]
+            iou_targets = assign_iou_targets(proposals, gt_boxes, pos_threshold=0.5)
+            loss_classifier, loss_box_reg = self.gfocal_loss(class_logits, box_regression, labels, regression_targets, iou_targets)
+            # loss_classifier, loss_box_reg = fastrcnn_loss(
+            #     class_logits, box_regression, labels, regression_targets)
             losses = {
                 "loss_classifier": loss_classifier,
                 "loss_box_reg": loss_box_reg

@@ -151,6 +151,25 @@ def box_area(boxes):
     return (boxes[:, 2] - boxes[:, 0]) * (boxes[:, 3] - boxes[:, 1])
 
 
+def compute_iou(boxes1, boxes2):
+    """
+    boxes1: [N, 4] (x1, y1, x2, y2)
+    boxes2: [M, 4] (x1, y1, x2, y2)
+    返回: [N, M] 的 IoU 矩阵
+    """
+    area1 = (boxes1[:, 2] - boxes1[:, 0]) * (boxes1[:, 3] - boxes1[:, 1])
+    area2 = (boxes2[:, 2] - boxes2[:, 0]) * (boxes2[:, 3] - boxes2[:, 1])
+
+    lt = torch.max(boxes1[:, None, :2], boxes2[:, :2])  # [N, M, 2]
+    rb = torch.min(boxes1[:, None, 2:], boxes2[:, 2:])  # [N, M, 2]
+
+    wh = (rb - lt).clamp(min=0)  # [N, M, 2]
+    inter = wh[:, :, 0] * wh[:, :, 1]  # [N, M]
+
+    union = area1[:, None] + area2 - inter
+    iou = inter / union
+    return iou
+
 def box_iou(boxes1, boxes2):
     """
     Return intersection-over-union (Jaccard index) of boxes.
@@ -179,3 +198,26 @@ def box_iou(boxes1, boxes2):
     iou = inter / (area1[:, None] + area2 - inter)
     return iou
 
+def assign_iou_targets(proposals, gt_boxes, pos_threshold=0.5, neg_threshold=0.0):
+    """
+    proposals: [N, 4] (候选框)
+    gt_boxes: [M, 4] (真实框)
+    返回: iou_targets [N]
+    """
+    all_iou_targets = []
+    for proposals_in_image, gt_boxes_in_image in zip(proposals, gt_boxes):
+        ious = compute_iou(proposals_in_image, gt_boxes_in_image)  # [N, M]
+        max_ious, max_indices = ious.max(dim=1)  # [N], [N]
+
+        # 初始化 iou_targets
+        iou_targets = torch.zeros_like(max_ious)
+
+        # 正样本：IoU >= pos_threshold
+        pos_mask = max_ious >= pos_threshold
+        iou_targets[pos_mask] = max_ious[pos_mask]
+
+        # 负样本：IoU < neg_threshold
+        neg_mask = max_ious < neg_threshold
+        iou_targets[neg_mask] = 0.0
+        all_iou_targets.append(iou_targets)
+    return all_iou_targets
