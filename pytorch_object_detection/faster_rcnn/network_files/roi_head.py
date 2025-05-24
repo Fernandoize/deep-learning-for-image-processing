@@ -393,12 +393,8 @@ class RoIHeads(torch.nn.Module):
         losses = {}
         if self.training:
             assert labels is not None and regression_targets is not None
-            dtype = proposals[0].dtype
-            gt_boxes = [t["boxes"].to(dtype) for t in targets]
-            iou_targets = assign_iou_targets(proposals, gt_boxes, pos_threshold=0.5)
-            loss_classifier, loss_box_reg = self.gfocal_loss(class_logits, box_regression, labels, regression_targets, iou_targets)
-            # loss_classifier, loss_box_reg = fastrcnn_loss(
-            #     class_logits, box_regression, labels, regression_targets)
+            loss_classifier, loss_box_reg = fastrcnn_loss(
+                class_logits, box_regression, labels, regression_targets)
             losses = {
                 "loss_classifier": loss_classifier,
                 "loss_box_reg": loss_box_reg

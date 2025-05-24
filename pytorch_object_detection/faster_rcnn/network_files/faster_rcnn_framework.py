@@ -164,11 +164,10 @@ class FastRCNNPredictor(nn.Module):
         num_classes (int): number of output classes (including background)
     """
 
-    def __init__(self, in_channels, num_classes, num_bins = 10):
+    def __init__(self, in_channels, num_classes):
         super(FastRCNNPredictor, self).__init__()
-        self.num_bins = num_bins
         self.cls_score = nn.Linear(in_channels, num_classes)
-        self.bbox_pred = nn.Linear(in_channels, num_classes * num_bins * 4)
+        self.bbox_pred = nn.Linear(in_channels, num_classes * 4)
 
     def forward(self, x):
         if x.dim() == 4:
@@ -177,7 +176,7 @@ class FastRCNNPredictor(nn.Module):
         scores = self.cls_score(x)
         bbox_deltas = self.bbox_pred(x)
 
-        return scores, bbox_deltas.reshape((-1, 4, self.num_bins))
+        return scores, bbox_deltas
 
 
 class FasterRCNN(FasterRCNNBase):
