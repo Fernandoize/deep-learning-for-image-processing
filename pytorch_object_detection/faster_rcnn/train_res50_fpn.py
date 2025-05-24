@@ -11,15 +11,15 @@ from train_utils import GroupedBatchSampler, create_aspect_ratio_groups
 from train_utils import train_eval_utils as utils
 
 
-def create_model(num_classes, load_pretrain_weights=False):
+def create_model(num_classes, load_pretrain_weights=True):
     # 注意，这里的backbone默认使用的是FrozenBatchNorm2d，即不会去更新bn参数
     # 目的是为了防止batch_size太小导致效果更差(如果显存很小，建议使用默认的FrozenBatchNorm2d)
     # 如果GPU显存很大可以设置比较大的batch_size就可以将norm_layer设置为普通的BatchNorm2d
     # trainable_layers包括['layer4', 'layer3', 'layer2', 'layer1', 'conv1']， 5代表全部训练
     # resnet50 imagenet weights url: https://download.pytorch.org/models/resnet50-0676ba61.pth
-    backbone = resnet50_fpn_backbone(
+    backbone = resnet50_fpn_backbone(pretrain_path="./backbone/resnet50.pth",
                                      norm_layer=torch.nn.BatchNorm2d,
-                                     trainable_layers=5)
+                                     trainable_layers=3)
     # 训练自己数据集时不要修改这里的91，修改的是传入的num_classes参数
     model = FasterRCNN(backbone=backbone, num_classes=91)
 
@@ -186,53 +186,53 @@ if __name__ == "__main__":
     """
     --data-path /root/DUODataSet --num-classes 5 
     """
-    backbone = resnet50_fpn_backbone(pretrain_path="./backbone/resnet50.pth",
-                                     norm_layer=torch.nn.BatchNorm2d,
-                                     trainable_layers=5)
-    x = torch.randn(1, 3, 512, 512)
-    backbone(x)
-    # import argparse
-    #
-    # parser = argparse.ArgumentParser(
-    #     description=__doc__)
-    # # 训练设备类型
-    # parser.add_argument('--device', default='cuda:0', help='device')
-    # # 训练数据集的根目录(VOCdevkit)
-    # parser.add_argument('--data-path', default='./', help='dataset')
-    # # 检测目标类别数(不包含背景)
-    # parser.add_argument('--num-classes', default=20, type=int, help='num_classes')
-    # # 文件保存地址
-    # parser.add_argument('--output-dir', default='./save_weights', help='path where to save')
-    # # 若需要接着上次训练，则指定上次训练保存权重文件地址
-    # parser.add_argument('--resume', default='', type=str, help='resume from checkpoint')
-    # # 指定接着从哪个epoch数开始训练
-    # parser.add_argument('--start_epoch', default=0, type=int, help='start epoch')
-    # # 训练的总epoch数
-    # parser.add_argument('--epochs', default=15, type=int, metavar='N',
-    #                     help='number of total epochs to run')
-    # # 学习率
-    # parser.add_argument('--lr', default=0.01, type=float,
-    #                     help='initial learning rate, 0.02 is the default value for training '
-    #                          'on 8 gpus and 2 images_per_gpu')
-    # # SGD的momentum参数
-    # parser.add_argument('--momentum', default=0.9, type=float, metavar='M',
-    #                     help='momentum')
-    # # SGD的weight_decay参数
-    # parser.add_argument('--wd', '--weight-decay', default=1e-4, type=float,
-    #                     metavar='W', help='weight decay (default: 1e-4)',
-    #                     dest='weight_decay')
-    # # 训练的batch size
-    # parser.add_argument('--batch_size', default=8, type=int, metavar='N',
-    #                     help='batch size when training.')
-    # parser.add_argument('--aspect-ratio-group-factor', default=3, type=int)
-    # # 是否使用混合精度训练(需要GPU支持混合精度)
-    # parser.add_argument("--amp", default=False, help="Use torch.cuda.amp for mixed precision training")
-    #
-    # args = parser.parse_args()
-    # print(args)
-    #
-    # # 检查保存权重文件夹是否存在，不存在则创建
-    # if not os.path.exists(args.output_dir):
-    #     os.makedirs(args.output_dir)
-    #
-    # main(args)
+    # backbone = resnet50_fpn_backbone(pretrain_path="./backbone/resnet50.pth",
+    #                                  norm_layer=torch.nn.BatchNorm2d,
+    #                                  trainable_layers=5)
+    # x = torch.randn(1, 3, 512, 512)
+    # backbone(x)
+    import argparse
+
+    parser = argparse.ArgumentParser(
+        description=__doc__)
+    # 训练设备类型
+    parser.add_argument('--device', default='cuda:0', help='device')
+    # 训练数据集的根目录(VOCdevkit)
+    parser.add_argument('--data-path', default='../../data_set/dfui', help='dataset')
+    # 检测目标类别数(不包含背景)
+    parser.add_argument('--num-classes', default=4, type=int, help='num_classes')
+    # 文件保存地址
+    parser.add_argument('--output-dir', default='./save_weights', help='path where to save')
+    # 若需要接着上次训练，则指定上次训练保存权重文件地址
+    parser.add_argument('--resume', default='', type=str, help='resume from checkpoint')
+    # 指定接着从哪个epoch数开始训练
+    parser.add_argument('--start_epoch', default=0, type=int, help='start epoch')
+    # 训练的总epoch数
+    parser.add_argument('--epochs', default=15, type=int, metavar='N',
+                        help='number of total epochs to run')
+    # 学习率
+    parser.add_argument('--lr', default=0.01, type=float,
+                        help='initial learning rate, 0.02 is the default value for training '
+                             'on 8 gpus and 2 images_per_gpu')
+    # SGD的momentum参数
+    parser.add_argument('--momentum', default=0.9, type=float, metavar='M',
+                        help='momentum')
+    # SGD的weight_decay参数
+    parser.add_argument('--wd', '--weight-decay', default=1e-4, type=float,
+                        metavar='W', help='weight decay (default: 1e-4)',
+                        dest='weight_decay')
+    # 训练的batch size
+    parser.add_argument('--batch_size', default=8, type=int, metavar='N',
+                        help='batch size when training.')
+    parser.add_argument('--aspect-ratio-group-factor', default=3, type=int)
+    # 是否使用混合精度训练(需要GPU支持混合精度)
+    parser.add_argument("--amp", default=False, help="Use torch.cuda.amp for mixed precision training")
+
+    args = parser.parse_args()
+    print(args)
+
+    # 检查保存权重文件夹是否存在，不存在则创建
+    if not os.path.exists(args.output_dir):
+        os.makedirs(args.output_dir)
+
+    main(args)

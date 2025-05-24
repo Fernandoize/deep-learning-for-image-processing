@@ -144,10 +144,9 @@ def main(args):
     results_file = "results{}.txt".format(datetime.datetime.now().strftime("%Y%m%d-%H%M%S"))
 
     data_transform = {
-        "train": transforms.Compose([transforms.Resize(224),
-                                     transforms.ToTensor(),
+        "train": transforms.Compose([transforms.ToTensor(),
                                      transforms.RandomHorizontalFlip(0.5)]),
-        "val": transforms.Compose([transforms.Resize(224),transforms.ToTensor()])
+        "val": transforms.Compose([transforms.ToTensor()])
     }
 
     VOC_root = args.data_path
