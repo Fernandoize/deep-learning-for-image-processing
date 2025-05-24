@@ -118,7 +118,7 @@ class ConvLayer(nn.Module):
 
 class InvertedResidual(nn.Module):
     """
-    This class implements the inverted residual block, as described in `MobileNetv2 <https://arxiv.org/abs/1801.04381>`_ paper
+    This class implements the inverted residual block, as described in `MobileNetv2 <https://arxiv.org/abs/1801.04381>`_ lab
 
     Args:
         in_channels (int): :math:`C_{in}` from an expected input of size :math:`(N, C_{in}, H_{in}, W_{in})`

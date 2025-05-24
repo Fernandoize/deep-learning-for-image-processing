@@ -7,14 +7,16 @@ import torch.optim as optim
 from torch.utils.tensorboard import SummaryWriter
 from torchvision import transforms
 import torch.optim.lr_scheduler as lr_scheduler
+from torchvision.models import efficientnet_v2_s
 
-from model import efficientnetv2_s as create_model
 from my_dataset import MyDataSet
 from utils import read_split_data, train_one_epoch, evaluate
 
+import torchvision.models
+
 
 def main(args):
-    device = torch.device(args.device if torch.cuda.is_available() else "cpu")
+    device = torch.device(args.device if torch.cuda.is_available() else "mps")
 
     print(args)
     print('Start Tensorboard with "tensorboard --logdir=runs", view at http://localhost:6006/')
@@ -50,7 +52,8 @@ def main(args):
                             transform=data_transform["val"])
 
     batch_size = args.batch_size
-    nw = min([os.cpu_count(), batch_size if batch_size > 1 else 0, 8])  # number of workers
+    # nw = min([os.cpu_count(), batch_size if batch_size > 1 else 0, 8])  # number of workers
+    nw = 0
     print('Using {} dataloader workers every process'.format(nw))
     train_loader = torch.utils.data.DataLoader(train_dataset,
                                                batch_size=batch_size,
@@ -67,7 +70,7 @@ def main(args):
                                              collate_fn=val_dataset.collate_fn)
 
     # 如果存在预训练权重则载入
-    model = create_model(num_classes=args.num_classes).to(device)
+    model = efficientnet_v2_s(pretrained=False, num_classes=args.num_classes).to(device)
     if args.weights != "":
         if os.path.exists(args.weights):
             weights_dict = torch.load(args.weights, map_location=device)
@@ -77,14 +80,16 @@ def main(args):
         else:
             raise FileNotFoundError("not found weights file: {}".format(args.weights))
 
+    for param in model.parameters():
+        param.requires_grad = True
     # 是否冻结权重
-    if args.freeze_layers:
-        for name, para in model.named_parameters():
-            # 除head外，其他权重全部冻结
-            if "head" not in name:
-                para.requires_grad_(False)
-            else:
-                print("training {}".format(name))
+    # if args.freeze_layers:
+    #     for name, para in model.named_parameters():
+    #         # 除head外，其他权重全部冻结
+    #         if "head" not in name:
+    #             para.requires_grad_(False)
+    #         else:
+    #             print("training {}".format(name))
 
     pg = [p for p in model.parameters() if p.requires_grad]
     optimizer = optim.SGD(pg, lr=args.lr, momentum=0.9, weight_decay=1E-4)
@@ -121,7 +126,7 @@ def main(args):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--num_classes', type=int, default=5)
-    parser.add_argument('--epochs', type=int, default=30)
+    parser.add_argument('--epochs', type=int, default=10)
     parser.add_argument('--batch-size', type=int, default=8)
     parser.add_argument('--lr', type=float, default=0.01)
     parser.add_argument('--lrf', type=float, default=0.01)
@@ -129,13 +134,13 @@ if __name__ == '__main__':
     # 数据集所在根目录
     # https://storage.googleapis.com/download.tensorflow.org/example_images/flower_photos.tgz
     parser.add_argument('--data-path', type=str,
-                        default="/data/flower_data")
+                        default="../../data_set/flower_data")
 
     # download model weights
     # 链接: https://pan.baidu.com/s/1uZX36rvrfEss-JGj4yfzbQ  密码: 5gu1
-    parser.add_argument('--weights', type=str, default='./pre_efficientnetv2-s.pth',
+    parser.add_argument('--weights', type=str, default='./efficientnet_v2_s-dd5fe13b.pth',
                         help='initial weights path')
-    parser.add_argument('--freeze-layers', type=bool, default=True)
+    parser.add_argument('--freeze-layers', type=bool, default=False)
     parser.add_argument('--device', default='cuda:0', help='device id (i.e. 0 or 0,1 or cpu)')
 
     opt = parser.parse_args()

@@ -59,7 +59,7 @@ def train_one_epoch(model, optimizer, data_loader, device, epoch,
             lr_scheduler.step()
 
         metric_logger.update(loss=losses_reduced, **loss_dict_reduced)
-        now_lr = optimizer.param_groups[0]["lr"]
+        now_lr = optimizer.paramx_groups[0]["lr"]
         metric_logger.update(lr=now_lr)
 
     return mloss, now_lr

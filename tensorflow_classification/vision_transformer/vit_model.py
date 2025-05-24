@@ -224,7 +224,7 @@ class VisionTransformer(Model):
 
 def vit_base_patch16_224_in21k(num_classes: int = 21843, has_logits: bool = True):
     """
-    ViT-Base model (ViT-B/16) from original paper (https://arxiv.org/abs/2010.11929).
+    ViT-Base model (ViT-B/16) from original lab (https://arxiv.org/abs/2010.11929).
     ImageNet-21k weights @ 224x224, source https://github.com/google-research/vision_transformer.
     """
     model = VisionTransformer(img_size=224,
@@ -240,7 +240,7 @@ def vit_base_patch16_224_in21k(num_classes: int = 21843, has_logits: bool = True
 
 def vit_base_patch32_224_in21k(num_classes: int = 21843, has_logits: bool = True):
     """
-    ViT-Base model (ViT-B/32) from original paper (https://arxiv.org/abs/2010.11929).
+    ViT-Base model (ViT-B/32) from original lab (https://arxiv.org/abs/2010.11929).
     ImageNet-21k weights @ 224x224, source https://github.com/google-research/vision_transformer.
     """
     model = VisionTransformer(img_size=224,
@@ -256,7 +256,7 @@ def vit_base_patch32_224_in21k(num_classes: int = 21843, has_logits: bool = True
 
 def vit_large_patch16_224_in21k(num_classes: int = 21843, has_logits: bool = True):
     """
-    ViT-Large model (ViT-L/16) from original paper (https://arxiv.org/abs/2010.11929).
+    ViT-Large model (ViT-L/16) from original lab (https://arxiv.org/abs/2010.11929).
     ImageNet-21k weights @ 224x224, source https://github.com/google-research/vision_transformer.
     """
     model = VisionTransformer(img_size=224,
@@ -272,7 +272,7 @@ def vit_large_patch16_224_in21k(num_classes: int = 21843, has_logits: bool = Tru
 
 def vit_large_patch32_224_in21k(num_classes: int = 21843, has_logits: bool = True):
     """
-    ViT-Large model (ViT-L/32) from original paper (https://arxiv.org/abs/2010.11929).
+    ViT-Large model (ViT-L/32) from original lab (https://arxiv.org/abs/2010.11929).
     ImageNet-21k weights @ 224x224, source https://github.com/google-research/vision_transformer.
     """
     model = VisionTransformer(img_size=224,
@@ -288,7 +288,7 @@ def vit_large_patch32_224_in21k(num_classes: int = 21843, has_logits: bool = Tru
 
 def vit_huge_patch14_224_in21k(num_classes: int = 21843, has_logits: bool = True):
     """
-    ViT-Huge model (ViT-H/14) from original paper (https://arxiv.org/abs/2010.11929).
+    ViT-Huge model (ViT-H/14) from original lab (https://arxiv.org/abs/2010.11929).
     ImageNet-21k weights @ 224x224, source https://github.com/google-research/vision_transformer.
     """
     model = VisionTransformer(img_size=224,

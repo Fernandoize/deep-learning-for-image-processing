@@ -3,7 +3,6 @@ import os
 
 import torch
 import torchvision
-from PIL import Image
 from timm.models.swin_transformer import swin_base_patch4_window12_384
 from torchvision.models import mobilenet_v3_large
 from torchvision.models.feature_extraction import create_feature_extractor, get_graph_node_names
@@ -12,9 +11,32 @@ import transforms
 from backbone import BackboneWithFPN, LastLevelMaxPool
 from my_dataset import VOCDataSet
 from network_files import FasterRCNN, AnchorsGenerator
+from pytorch_object_detection.faster_rcnn.backbone.fasternet import FasterNet
 from train_utils import GroupedBatchSampler, create_aspect_ratio_groups
 from train_utils import train_eval_utils as utils
 
+def create_faster_net_backbone_with_fpn():
+    backbone = FasterNet(
+        mlp_ratio=2.0,
+        embed_dim=128,
+        depths=(1, 2, 13, 2),
+        drop_path_rate=0.15,
+        act_layer='RELU',
+        fork_feat=False,
+        )
+    checkpoint = torch.load("backbone/fasternet_s-epoch.299-val_acc1.81.2840.pth", map_location='cpu')
+    backbone.load_state_dict(checkpoint)
+    for param in backbone.parameters():
+        param.requires_grad = True
+    # print(backbone)
+    return_layers = {'stages.0': '0'}
+    # 提供给fpn的每个特征层channel
+    in_channels_list = [128]
+    new_backbone = create_feature_extractor(backbone, return_layers)
+    img = torch.randn(1, 3, 224, 224)
+    outputs = new_backbone(img)
+    [print(f"{k} shape: {v.shape}") for k, v in outputs.items()]
+    return new_backbone, return_layers, in_channels_list
 
 def create_swin_transformer_backbone_with_fpn():
     backbone = swin_base_patch4_window12_384(pretrained=True)
@@ -30,19 +52,18 @@ def create_swin_transformer_backbone_with_fpn():
     return new_backbone, return_layers, in_channels_list
 
 def create_resnet_backbone_with_fpn():
-    backbone = torchvision.models.resnet152(pretrained=False)
-    # checkpoint = torch.load("backbone/resnet152.pth")
-    # backbone.load_state_dict(checkpoint)
+    backbone = torchvision.models.resnet50(pretrained=True)
+    checkpoint = torch.load("backbone/resnet50.pth")
+    backbone.load_state_dict(checkpoint)
     # print(backbone)
-    return_layers = {'layer1': '0', 'layer2': '1', 'layer3': '2', 'layer4': '3'}
+    return_layers = {'layer2': '0', 'layer3': '1',  'layer4': '2'}
     # 提供给fpn的每个特征层channel
-    in_channels_list = [256, 512, 1024, 2048]
+    in_channels_list = [128, 256, 512]
     new_backbone = create_feature_extractor(backbone, return_layers)
     img = torch.randn(1, 3, 224, 224)
     outputs = new_backbone(img)
     [print(f"{k} shape: {v.shape}") for k, v in outputs.items()]
     return new_backbone, return_layers, in_channels_list
-
 
 def create_efficientnet_backbone_with_fpn():
     backbone = torchvision.models.efficientnet_b7(pretrained=False)
@@ -87,6 +108,8 @@ def create_model(num_classes, model_name, load_pretrain_weights=True):
         new_backbone, return_layers, in_channels_list = create_resnet_backbone_with_fpn()
     elif model_name == "swin":
         new_backbone, return_layers, in_channels_list = create_swin_transformer_backbone_with_fpn()
+    elif model_name == "fasternet":
+        new_backbone, return_layers, in_channels_list = create_faster_net_backbone_with_fpn()
 
     backbone_with_fpn = BackboneWithFPN(new_backbone,
                                         return_layers=return_layers,
@@ -114,16 +137,17 @@ def create_model(num_classes, model_name, load_pretrain_weights=True):
 
 
 def main(args):
-    device = torch.device(args.device if torch.cuda.is_available() else "cpu")
+    device = torch.device(args.device if torch.cuda.is_available() else "mps")
     print("Using {} device training.".format(device.type))
 
     # 用来保存coco_info的文件
     results_file = "results{}.txt".format(datetime.datetime.now().strftime("%Y%m%d-%H%M%S"))
 
     data_transform = {
-        "train": transforms.Compose([transforms.ToTensor(),
+        "train": transforms.Compose([transforms.Resize(224),
+                                     transforms.ToTensor(),
                                      transforms.RandomHorizontalFlip(0.5)]),
-        "val": transforms.Compose([transforms.ToTensor()])
+        "val": transforms.Compose([transforms.Resize(224),transforms.ToTensor()])
     }
 
     VOC_root = args.data_path
@@ -266,13 +290,16 @@ if __name__ == "__main__":
     # image = [train_dataset[0][0], train_dataset[1][0]]
     # model.eval()
     # model(image)
+    """
+    nohup python3 change_backbone_with_fpn.py --batch_size 8 > output.log 2>&1 &
+    """
 
     import argparse
 
     parser = argparse.ArgumentParser(
         description=__doc__)
 
-    parser.add_argument('--model_name', default='mobilenetv3', help='model_name')
+    parser.add_argument('--model_name', default='resnet', help='model_name')
     # 训练设备类型
     parser.add_argument('--device', default='cuda:0', help='device')
     # 训练数据集的根目录(VOCdevkit)
@@ -300,7 +327,7 @@ if __name__ == "__main__":
                         metavar='W', help='weight decay (default: 1e-4)',
                         dest='weight_decay')
     # 训练的batch size
-    parser.add_argument('--batch_size', default=32, type=int, metavar='N',
+    parser.add_argument('--batch_size', default=4, type=int, metavar='N',
                         help='batch size when training.')
     parser.add_argument('--aspect-ratio-group-factor', default=3, type=int)
     # 是否使用混合精度训练(需要GPU支持混合精度)

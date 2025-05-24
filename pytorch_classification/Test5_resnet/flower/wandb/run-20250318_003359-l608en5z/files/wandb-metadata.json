@@ -1,0 +1,44 @@
+{
+  "os":  "macOS-15.3.1-arm64-arm-64bit",
+  "python":  "CPython 3.8.20",
+  "startedAt":  "2025-03-17T16:34:00.680623Z",
+  "program":  "/Users/wangfengguo/Code/deep-learning-for-image-processing/pytorch_classification/Test5_resnet/flower/train.py",
+  "codePath":  "pytorch_classification/Test5_resnet/flower/train.py",
+  "git":  {
+    "remote":  "git@github.com:Fernandoize/deep-learning-for-image-processing.git",
+    "commit":  "7ad340ab9888f734b4c8a364848ca174bb1c1af0"
+  },
+  "email":  "wfg359969048@gmail.com",
+  "root":  "/Users/wangfengguo/Code/deep-learning-for-image-processing/pytorch_classification/Test5_resnet/flower",
+  "host":  "admindeMacBook-Pro.local",
+  "executable":  "/Users/wangfengguo/opt/anaconda3/envs/torch-env/bin/python",
+  "codePathLocal":  "train.py",
+  "cpu_count":  12,
+  "cpu_count_logical":  12,
+  "disk":  {
+    "/":  {
+      "total":  "494384795648",
+      "used":  "456110231552"
+    },
+    "/System/Volumes/Data":  {
+      "total":  "494384795648",
+      "used":  "456110231552"
+    }
+  },
+  "memory":  {
+    "total":  "51539607552"
+  },
+  "cpu":  {
+    "count":  12,
+    "countLogical":  12
+  },
+  "apple":  {
+    "name":  "Apple M4 Pro",
+    "ecpuCores":  4,
+    "pcpuCores":  8,
+    "gpuCores":  16,
+    "memoryGb":  48,
+    "swapTotalBytes":  "10737418240",
+    "ramTotalBytes":  "51539607552"
+  }
+}

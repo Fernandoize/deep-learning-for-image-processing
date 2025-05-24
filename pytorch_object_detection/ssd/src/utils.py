@@ -348,7 +348,7 @@ class DefaultBoxes(object):
         self.scale_wh_ = scale_wh
 
         # According to https://github.com/weiliu89/caffe
-        # Calculation method slightly different from paper
+        # Calculation method slightly different from lab
         # [8, 16, 32, 64, 100, 300]
         self.steps = steps    # 每个特征层上的一个cell在原图上的跨度
 

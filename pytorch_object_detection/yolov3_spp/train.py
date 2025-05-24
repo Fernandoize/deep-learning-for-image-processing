@@ -14,9 +14,11 @@ from train_utils import get_coco_api_from_dataset
 
 
 def train(hyp):
+    # 设置训练设备
     device = torch.device(opt.device if torch.cuda.is_available() else "cpu")
     print("Using {} device training.".format(device.type))
 
+    # 设置权重保存路径和结果
     wdir = "weights" + os.sep  # weights dir
     best = wdir + "best.pt"
     results_file = "results{}.txt".format(datetime.datetime.now().strftime("%Y%m%d-%H%M%S"))
@@ -300,4 +302,6 @@ if __name__ == '__main__':
 
     print('Start Tensorboard with "tensorboard --logdir=runs", view at http://localhost:6006/')
     tb_writer = SummaryWriter(comment=opt.name)
-    train(hyp)
+
+    input = torch.randn(1, 3, opt.img_size, opt.img_size)
+    model = Darknet(opt.cfg)

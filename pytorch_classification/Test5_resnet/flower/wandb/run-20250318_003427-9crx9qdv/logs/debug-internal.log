@@ -1,0 +1,7 @@
+{"time":"2025-03-18T00:34:28.124574+08:00","level":"INFO","msg":"stream: starting","core version":"0.19.2","symlink path":"/Users/wangfengguo/Code/deep-learning-for-image-processing/pytorch_classification/Test5_resnet/flower/wandb/run-20250318_003427-9crx9qdv/logs/debug-core.log"}
+{"time":"2025-03-18T00:34:28.231142+08:00","level":"INFO","msg":"created new stream","id":"9crx9qdv"}
+{"time":"2025-03-18T00:34:28.231205+08:00","level":"INFO","msg":"stream: started","id":"9crx9qdv"}
+{"time":"2025-03-18T00:34:28.231229+08:00","level":"INFO","msg":"handler: started","stream_id":"9crx9qdv"}
+{"time":"2025-03-18T00:34:28.231273+08:00","level":"INFO","msg":"sender: started","stream_id":"9crx9qdv"}
+{"time":"2025-03-18T00:34:28.231228+08:00","level":"INFO","msg":"writer: Do: started","stream_id":"9crx9qdv"}
+{"time":"2025-03-18T00:34:28.708232+08:00","level":"INFO","msg":"Starting system monitor"}

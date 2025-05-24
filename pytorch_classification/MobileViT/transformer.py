@@ -8,7 +8,7 @@ from torch import Tensor
 class MultiHeadAttention(nn.Module):
     """
     This layer applies a multi-head self- or cross-attention as described in
-    `Attention is all you need <https://arxiv.org/abs/1706.03762>`_ paper
+    `Attention is all you need <https://arxiv.org/abs/1706.03762>`_ lab
 
     Args:
         embed_dim (int): :math:`C_{in}` from an expected input of size :math:`(N, P, C_{in})`

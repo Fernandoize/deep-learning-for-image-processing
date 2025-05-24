@@ -12,13 +12,13 @@ import wandb
 from torchvision import transforms, datasets
 from tqdm import tqdm
 
-from pytorch_classification.Test5_resnet.flower.model import resnet34
+from pytorch_classification.Test5_resnet.flower.model import resnet18
 
 # 初始化wandb
 wandb.init(project='resnet34')
 
 # 超参数设置
-config = wandb.config
+config =wandb.config
 config.batch_size = 32
 config.test_batch_size = 32
 config.epochs = 50
@@ -91,8 +91,8 @@ def main():
 
     # 4. 模型定义
     # 注意：为了正确加载权重，这里不要设置classes
-    net = resnet34()
-    missing_keys, unexpected_keys = net.load_state_dict(torch.load("resnet34-b627a593.pth", map_location=device),
+    net = resnet18()
+    missing_keys, unexpected_keys = net.load_state_dict(torch.load("../clip-resnet-2.pth", map_location=device),
                                                         strict=False)
     print("missing keys: {}".format(missing_keys))
     print("unexpected keys: {}".format(unexpected_keys))
@@ -159,12 +159,6 @@ def main():
         print('[valid epoch %d] train_loss: %.3f, test_loss: %.3f, val_accuracy: %.3f' %
               (epoch + 1, running_loss / train_steps, val_loss / val_steps, val_accurate))
 
-        # 使用wandb.log 记录你想记录的指标
-        wandb.log({
-            "Train Loss": running_loss / train_steps,
-            "Val Accuracy": 100. * val_accurate,
-            "Val Loss": val_loss / val_steps
-        })
 
         if val_accurate > best_acc:
             best_acc = val_accurate

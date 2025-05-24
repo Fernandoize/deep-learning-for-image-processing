@@ -7,6 +7,8 @@ import torch.nn.functional as F
 
 from torch.jit.annotations import Tuple, List, Dict
 
+from pytorch_object_detection.faster_rcnn.cross_attention import CrossAttentionFusion
+
 
 class IntermediateLayerGetter(nn.ModuleDict):
     """
@@ -100,6 +102,7 @@ class FeaturePyramidNetwork(nn.Module):
                 nn.init.constant_(m.bias, 0)
 
         self.extra_blocks = extra_blocks
+        self.batch_norm = nn.BatchNorm2d(out_channels)
 
     def get_result_from_inner_blocks(self, x: Tensor, idx: int) -> Tensor:
         """
@@ -164,7 +167,8 @@ class FeaturePyramidNetwork(nn.Module):
             # 对last layer 进行上采样，保证特征图大小一致
             inner_top_down = F.interpolate(last_inner, size=feat_shape, mode="nearest")
             # 加法融合
-            last_inner = inner_lateral + inner_top_down
+            normed_feature = self.batch_norm(torch.cat([inner_lateral, inner_top_down])).reshape(2, *inner_lateral.shape)
+            last_inner = normed_feature[0] + normed_feature[1]
             # 保存结果, 浅层的特征在前，深层特征在后
             results.insert(0, self.get_result_from_layer_blocks(last_inner, idx))
 
@@ -237,8 +241,13 @@ class BackboneWithFPN(nn.Module):
 
         self.out_channels = out_channels
 
+        self.attention_fusion = CrossAttentionFusion(
+            use_encoder_idx=[0,1,2],
+            use_cross_attention=True)
+
     def forward(self, x):
         x = self.body(x)
         # 128, 64, 32, 16
-        x = self.fpn(x)
+        # x = self.fpn(x)
+        x = self.attention_fusion(x)
         return x

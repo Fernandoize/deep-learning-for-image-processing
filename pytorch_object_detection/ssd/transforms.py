@@ -46,7 +46,7 @@ class RandomHorizontalFlip(object):
 class SSDCropping(object):
     """
     根据原文，对图像进行裁剪,该方法应放在ToTensor前
-    Cropping for SSD, according to original paper
+    Cropping for SSD, according to original lab
     Choose between following 3 conditions:
     1. Preserve the original image
     2. Random crop minimum IoU is among 0.1, 0.3, 0.5, 0.7, 0.9

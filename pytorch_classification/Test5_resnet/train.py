@@ -5,14 +5,13 @@ import json
 import torch
 import torch.nn as nn
 import torch.optim as optim
+from timm.models.resnet import resnet101, resnet152
 from torchvision import transforms, datasets
 from tqdm import tqdm
 
-from model import resnet34
-
 
 def main():
-    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "mps")
     print("using {} device.".format(device))
 
     data_transform = {
@@ -26,7 +25,7 @@ def main():
                                    transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])])}
 
     data_root = os.path.abspath(os.path.join(os.getcwd(), "../.."))  # get data root path
-    image_path = os.path.join(data_root, "data_set", "flower_data")  # flower data set path
+    image_path = os.path.join(data_root, "data_set")  # flower data set path
     assert os.path.exists(image_path), "{} path does not exist.".format(image_path)
     train_dataset = datasets.ImageFolder(root=os.path.join(image_path, "train"),
                                          transform=data_transform["train"])
@@ -41,7 +40,8 @@ def main():
         json_file.write(json_str)
 
     batch_size = 16
-    nw = min([os.cpu_count(), batch_size if batch_size > 1 else 0, 8])  # number of workers
+    # nw = min([os.cpu_count(), batch_size if batch_size > 1 else 0, 8])  # number of workers
+    nw = 0
     print('Using {} dataloader workers every process'.format(nw))
 
     train_loader = torch.utils.data.DataLoader(train_dataset,
@@ -58,14 +58,18 @@ def main():
     print("using {} images for training, {} images for validation.".format(train_num,
                                                                            val_num))
     
-    net = resnet34()
+    net = resnet101(pretrained=True)
     # load pretrain weights
     # download url: https://download.pytorch.org/models/resnet34-333f7ec4.pth
-    model_weight_path = "./resnet34-pre.pth"
-    assert os.path.exists(model_weight_path), "file {} does not exist.".format(model_weight_path)
-    net.load_state_dict(torch.load(model_weight_path, map_location='cpu'))
-    # for param in net.parameters():
-    #     param.requires_grad = False
+    # model_weight_path = "./clip-resnet-2.pth"
+    # assert os.path.exists(model_weight_path), "file {} does not exist.".format(model_weight_path)
+    # net.load_state_dict(torch.load(model_weight_path, map_location='cpu'), strict=False)
+    for param in net.parameters():
+        param.requires_grad = True
+
+    # for name, para in net.named_parameters():
+    #     # 除head外，其他权重全部冻结
+    #     para.requires_grad =
 
     # change fc layer structure
     in_channel = net.fc.in_features

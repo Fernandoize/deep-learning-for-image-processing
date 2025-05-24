@@ -1,0 +1,16 @@
+{
+  "os":  "macOS-15.3.1-arm64-arm-64bit",
+  "python":  "CPython 3.8.20",
+  "startedAt":  "2025-03-17T16:37:36.929550Z",
+  "program":  "/Users/wangfengguo/Code/deep-learning-for-image-processing/pytorch_classification/Test5_resnet/flower/train.py",
+  "codePath":  "pytorch_classification/Test5_resnet/flower/train.py",
+  "git":  {
+    "remote":  "git@github.com:Fernandoize/deep-learning-for-image-processing.git",
+    "commit":  "7ad340ab9888f734b4c8a364848ca174bb1c1af0"
+  },
+  "email":  "wfg359969048@gmail.com",
+  "root":  "/Users/wangfengguo/Code/deep-learning-for-image-processing/pytorch_classification/Test5_resnet/flower",
+  "host":  "admindeMacBook-Pro.local",
+  "executable":  "/Users/wangfengguo/opt/anaconda3/envs/torch-env/bin/python",
+  "codePathLocal":  "train.py"
+}

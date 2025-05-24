@@ -10,6 +10,8 @@ from tqdm import tqdm
 
 import matplotlib.pyplot as plt
 
+from pytorch_classification.MobileViT import utils
+
 
 def read_split_data(root: str, val_rate: float = 0.2):
     random.seed(0)  # 保证随机结果可复现
@@ -116,7 +118,7 @@ def read_pickle(file_name: str) -> list:
         return info_list
 
 
-def train_one_epoch(model, optimizer, data_loader, device, epoch, lr_scheduler):
+def train_one_epoch(model, optimizer, data_loader, device, epoch, warmup=False):
     model.train()
     loss_function = torch.nn.CrossEntropyLoss()
     accu_loss = torch.zeros(1).to(device)  # 累计损失
