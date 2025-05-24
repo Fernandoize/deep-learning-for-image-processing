@@ -11,7 +11,7 @@ import transforms
 from backbone import BackboneWithFPN, LastLevelMaxPool
 from my_dataset import VOCDataSet
 from network_files import FasterRCNN, AnchorsGenerator
-from pytorch_object_detection.faster_rcnn.backbone.fasternet import FasterNet
+from backbone.fasternet import FasterNet
 from train_utils import GroupedBatchSampler, create_aspect_ratio_groups
 from train_utils import train_eval_utils as utils
 
@@ -155,9 +155,11 @@ def main(args):
     if os.path.exists(os.path.join(VOC_root, "VOCdevkit")) is False:
         raise FileNotFoundError("VOCdevkit dose not in path:'{}'.".format(VOC_root))
 
+    # data percent
+    percent = float(args.percent)
     # load train data set
     # VOCdevkit -> VOC2012 -> ImageSets -> Main -> train.txt
-    train_dataset = VOCDataSet(VOC_root, "2012", data_transform["train"], "train.txt")
+    train_dataset = VOCDataSet(VOC_root, "2012", data_transform["train"], "train.txt", percent)
     train_sampler = None
 
     # 是否按图片相似高宽比采样图片组成batch
@@ -332,7 +334,7 @@ if __name__ == "__main__":
     parser.add_argument('--aspect-ratio-group-factor', default=3, type=int)
     # 是否使用混合精度训练(需要GPU支持混合精度)
     parser.add_argument("--amp", default=False, help="Use torch.cuda.amp for mixed precision training")
-
+    parser.add_argument("--percent", default=1, help="")
     args = parser.parse_args()
     print(args)
 

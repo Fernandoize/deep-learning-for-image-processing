@@ -12,7 +12,7 @@ from PIL import Image
 class VOCDataSet(Dataset):
     """读取解析PASCAL VOC2007/2012数据集"""
 
-    def __init__(self, voc_root, year="2012", transforms=None, txt_name: str = "train.txt"):
+    def __init__(self, voc_root, year="2012", transforms=None, txt_name: str = "train.txt", percent=1.0):
         assert year in ["2007", "2012"], "year must be in ['2007', '2012']"
         # 增加容错能力
         if "VOCdevkit" in voc_root:
@@ -48,6 +48,9 @@ class VOCDataSet(Dataset):
 
             self.xml_list.append(xml_path)
 
+        before_size = len(self.xml_list)
+        self.xml_list = random.choices(xml_list, k=int(len(xml_list) * percent))
+        print("data size: {}/{}".format(before_size, len(self.xml_list)))
         assert len(self.xml_list) > 0, "in '{}' file does not find any information.".format(txt_path)
 
         # read class_indict
